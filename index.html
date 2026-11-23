@@ -1,0 +1,287 @@
+test 123
+строка<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>5 тренировок</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+  :root{
+    --bg: var(--tg-theme-bg-color, #ffffff);
+    --bg2: var(--tg-theme-secondary-bg-color, #f2f2f6);
+    --text: var(--tg-theme-text-color, #111111);
+    --hint: var(--tg-theme-hint-color, #8a8a8e);
+    --link: var(--tg-theme-link-color, #2a7de1);
+    --btn: var(--tg-theme-button-color, #2a7de1);
+    --btn-text: var(--tg-theme-button-text-color, #ffffff);
+    --ok: #34c759;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  body{margin:0;font:15px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:var(--bg2);color:var(--text);padding-bottom:96px}
+  header{position:sticky;top:0;z-index:5;background:var(--bg2);padding:10px 12px 8px}
+  .tabs{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none}
+  .tabs::-webkit-scrollbar{display:none}
+  .tab{flex:0 0 auto;border:0;border-radius:18px;padding:8px 14px;font:inherit;font-weight:600;background:var(--bg);color:var(--text)}
+  .tab.active{background:var(--btn);color:var(--btn-text)}
+  .tab .tick{color:var(--ok);margin-left:4px}
+  .tab.active .tick{color:var(--btn-text)}
+  main{padding:0 12px}
+  h1{font-size:20px;margin:6px 2px 2px}
+  .sub{color:var(--hint);margin:0 2px 12px;font-size:13px}
+  .card{background:var(--bg);border-radius:14px;padding:12px 14px;margin-bottom:10px}
+  .card.info{font-size:14px}
+  .card.info b{display:block;margin-bottom:4px}
+  .ex-head{display:flex;gap:8px;align-items:flex-start}
+  .num{flex:0 0 auto;min-width:26px;height:26px;border-radius:13px;background:var(--bg2);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:var(--hint)}
+  .ex-title{flex:1;font-weight:600}
+  .video{color:var(--link);font-weight:500;font-size:13px;white-space:nowrap;background:none;border:0;padding:2px 0;font-family:inherit}
+  .meta{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
+  .pill{background:var(--bg2);border-radius:8px;padding:3px 8px;font-size:13px}
+  .pill span{color:var(--hint)}
+  .sets{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:4px}
+  .set{width:40px;height:40px;border-radius:20px;border:2px solid var(--hint);background:transparent;color:var(--text);font:inherit;font-weight:700}
+  .set.done{background:var(--ok);border-color:var(--ok);color:#fff}
+  .w-input{margin-left:auto;display:flex;align-items:center;gap:4px;font-size:13px;color:var(--hint)}
+  .w-input input{width:74px;padding:7px 8px;border-radius:8px;border:1px solid var(--bg2);background:var(--bg2);color:var(--text);font:inherit;text-align:center}
+  .note{color:var(--hint);font-size:13px;margin-top:6px}
+  .card.done-ex{opacity:.6}
+  ol.circuit{margin:6px 0 0;padding-left:20px}
+  ol.circuit li{margin:3px 0}
+  .finish{width:100%;border:0;border-radius:12px;padding:14px;font:inherit;font-weight:700;background:var(--btn);color:var(--btn-text);margin:6px 0 10px}
+  .finish.is-done{background:var(--ok)}
+  .reset{width:100%;border:0;background:none;color:var(--hint);font:inherit;font-size:13px;padding:8px}
+  #timer{position:fixed;left:12px;right:12px;bottom:12px;z-index:10;background:var(--btn);color:var(--btn-text);border-radius:14px;padding:12px 16px;display:none;align-items:center;gap:12px;box-shadow:0 6px 20px rgba(0,0,0,.25)}
+  #timer.show{display:flex}
+  #timer .t{font-size:26px;font-weight:800;font-variant-numeric:tabular-nums}
+  #timer .lbl{flex:1;font-size:13px;opacity:.9}
+  #timer button{border:0;border-radius:10px;padding:8px 10px;background:rgba(255,255,255,.22);color:inherit;font:inherit;font-weight:600}
+  #timer.over{background:var(--ok)}
+  ul.plain{margin:4px 0 0;padding-left:18px}
+  ul.plain li{margin:3px 0}
+</style>
+</head>
+<body>
+<header><nav class="tabs" id="tabs"></nav></header>
+<main id="main"></main>
+<div id="timer"><div class="t" id="tval">0:00</div><div class="lbl" id="tlbl">Отдых</div><button id="tplus">+30 с</button><button id="tstop">✕</button></div>
+
+<script>
+const tg = window.Telegram && window.Telegram.WebApp;
+if (tg) { tg.ready(); tg.expand(); }
+
+const MW = s => 'https://musclewiki.com/exercise/' + s;
+const WARMUP = 'Дорожка 5 мин (уклон 8%, 5 км/ч), 10 вращений плечами, 10 приседаний без веса, 10 наклонов с ровной спиной. Перед первым базовым — 2 разминочных подхода: 50% × 10 и 75% × 5.';
+
+const WORKOUTS = [
+  { id:'w1', short:'Т1', title:'Грудь, плечи, квадрицепс', focus:'Жимовые движения и передняя поверхность бедра.',
+    ex:[
+      {n:'1', name:'Жим ногами сидя', sets:4, reps:'10–12', w:'85', rest:120, v:'machine-leg-press'},
+      {n:'2', name:'Жим гантелей на наклонной 30°', sets:4, reps:'8–10', w:'2×24–28', rest:120, v:'dumbbell-incline-bench-press', note:'Новое упражнение — подбери вес в разминке.'},
+      {n:'3', name:'Сведение в тренажёре (бабочка)', sets:3, reps:'12', w:'27,5', rest:75, v:'machine-pec-fly'},
+      {n:'4', name:'Плие-присед с гантелью', sets:3, reps:'12', w:'34', rest:90, v:'dumbbell-sumo-squat', approx:true},
+      {n:'5a', name:'Махи гантелями в стороны стоя', sets:3, reps:'12–15', w:'2×10–12', rest:0, v:'dumbbell-lateral-raise', note:'Суперсет: сразу 5b, без отдыха.'},
+      {n:'5b', name:'Разгибание рук на блоке (канат)', sets:3, reps:'12', w:'подбор', rest:75, v:'cable-rope-pushdown'},
+      {n:'6', name:'Прогулка фермера', sets:3, reps:'30 м', w:'2×28–32', rest:60, v:'kettlebell-farmers-carry'},
+      {n:'7', name:'Планка на локтях', sets:3, reps:'40 с', w:'—', rest:45, v:'forearm-plank'}
+    ],
+    cardio:'10 мин интервалы на дорожке: 5 × (1 мин в горку 10–12%, 6 км/ч + 1 мин спокойно 2%, 4,5 км/ч).',
+    cool:'Растяжка груди у стены и квадрицепса стоя, по 30 с на сторону.'
+  },
+  { id:'w2', short:'Т2', title:'Спина и задняя поверхность', focus:'Тяги и разгибание таза. Румынскую тягу начинай легко.',
+    ex:[
+      {n:'1', name:'Тяга верхнего блока широким хватом', sets:4, reps:'8–10', w:'60', rest:120, v:'machine-pulldown'},
+      {n:'2', name:'Румынская тяга с гантелями', sets:4, reps:'10', w:'2×28 → 2×32', rest:120, v:'dumbbell-romanian-deadlift'},
+      {n:'3', name:'Рычажная тяга сидя', sets:4, reps:'10', w:'87,5–90', rest:120, v:'machine-plate-loaded-row'},
+      {n:'4', name:'Сгибание ног сидя', sets:3, reps:'12', w:'42,5', rest:75, v:'machine-seated-leg-curl'},
+      {n:'5', name:'Обратная бабочка', sets:3, reps:'15', w:'10', rest:60, v:'machine-reverse-fly'},
+      {n:'6', name:'Подъём гантелей на бицепс стоя', sets:3, reps:'10–12', w:'2×12–14', rest:75, v:'dumbbell-curl'},
+      {n:'7', name:'Махи гирей', sets:3, reps:'15', w:'20–24', rest:60, v:'kettlebell-swing'},
+      {n:'8', name:'Жим Паллофа на блоке', sets:3, reps:'10 / сторона', w:'подбор', rest:45, v:'band-pallof-press', approx:true}
+    ],
+    cardio:'12 мин гребной тренажёр: 8 × (30 с интенсивно + 60 с легко). Нет гребного — велотренажёр так же.',
+    cool:'Наклон к прямой ноге и поза ребёнка, по 30 с.'
+  },
+  { id:'w3', short:'Т3', title:'Ноги, ягодицы, плечи', focus:'Ягодицы и жим над головой. Первый подход в новых упражнениях — пробный.',
+    ex:[
+      {n:'1', name:'Гоблет-присед', sets:4, reps:'10', w:'32–36', rest:120, v:'dumbbell-goblet-squat'},
+      {n:'2', name:'Ягодичный мост со штангой', sets:4, reps:'10–12', w:'старт 60', rest:120, v:'barbell-hip-thrust'},
+      {n:'3', name:'Жим гантелей сидя над головой', sets:4, reps:'8–10', w:'2×20–24', rest:120, v:'dumbbell-seated-overhead-press'},
+      {n:'4', name:'Жим одной ногой', sets:3, reps:'10 / нога', w:'65', rest:90, v:'machine-single-leg-leg-press'},
+      {n:'5', name:'Отведение ног в тренажёре', sets:3, reps:'15', w:'47,5', rest:60, v:'machine-hip-abduction'},
+      {n:'6', name:'Тяга штанги к подбородку', sets:3, reps:'12', w:'32,5', rest:75, v:'barbell-upright-row', note:'Локти не выше плеч.'},
+      {n:'7', name:'Выпады с гантелями в ходьбе', sets:2, reps:'10 шагов / нога', w:'2×16–20', rest:90, v:'lunge-walking', approx:true},
+      {n:'8', name:'«Мёртвый жук»', sets:3, reps:'10 / сторона', w:'—', rest:45, v:'dead-bug'}
+    ],
+    cardio:'12 мин велотренажёр ровно, пульс 120–135.',
+    cool:'«Голубь» и растяжка плечевого сустава, по 30 с.'
+  },
+  { id:'w4', short:'Т4', title:'Верх тела', focus:'Объём на спину, грудь и руки. Ноги отдыхают.',
+    ex:[
+      {n:'1', name:'Подтягивания в гравитроне нейтральным хватом', sets:4, reps:'6–8', w:'−5 кг противовеса', rest:120, v:'machine-assisted-pull-up', approx:true},
+      {n:'2', name:'Жим гантелей лёжа', sets:4, reps:'8–10', w:'2×28–32', rest:120, v:'dumbbell-bench-press'},
+      {n:'3', name:'Тяга нижнего блока узким хватом', sets:3, reps:'12', w:'55', rest:90, v:'machine-seated-cable-row'},
+      {n:'4', name:'Разводка гантелей на наклонной 45°', sets:3, reps:'12', w:'2×20–22', rest:75, v:'dumbbell-incline-chest-fly'},
+      {n:'5a', name:'Махи гантелями в наклоне', sets:3, reps:'12–15', w:'2×20', rest:0, v:'dumbbell-rear-delt-fly', note:'Суперсет: сразу 5b.'},
+      {n:'5b', name:'Махи гантелями в стороны', sets:3, reps:'12–15', w:'2×10', rest:75, v:'dumbbell-lateral-raise'},
+      {n:'6a', name:'Сгибание рук на нижнем блоке', sets:3, reps:'12', w:'подбор', rest:0, v:'cable-bar-curl', note:'Суперсет: сразу 6b.'},
+      {n:'6b', name:'Разгибание с канатом из-за головы', sets:3, reps:'12', w:'подбор', rest:75, v:'cable-rope-overhead-tricep-extension'},
+      {n:'7', name:'Броски медбола в пол', sets:3, reps:'10', w:'6–8', rest:60, v:'slam'},
+      {n:'8', name:'Переноска гантели в одной руке', sets:2, reps:'30 м / рука', w:'28–32', rest:60, v:'kettlebell-farmers-carry', approx:true}
+    ],
+    cardio:'10 мин дорожка в горку: уклон 10%, 5 км/ч, без поручней.',
+    cool:'Растяжка груди и спины, бабочка сидя, по 30 с.'
+  },
+  { id:'w5', short:'Т5', title:'Финал: сила + круговая', focus:'Тяжелее и меньше повторов, потом функциональный круг.',
+    ex:[
+      {n:'1', name:'Жим ногами сидя', sets:4, reps:'8', w:'90–95', rest:150, v:'machine-leg-press'},
+      {n:'2', name:'Жим гантелей на наклонной 30°', sets:4, reps:'6–8', w:'+2 кг к Т1', rest:150, v:'dumbbell-incline-bench-press'},
+      {n:'3', name:'Тяга верхнего блока обратным хватом', sets:4, reps:'8', w:'60', rest:120, v:'underhand-pulldown'},
+      {n:'4', name:'Румынская тяга с гантелями', sets:3, reps:'8', w:'+2 кг к Т2', rest:120, v:'dumbbell-romanian-deadlift'},
+      {n:'5', name:'Рычажная тяга сидя', sets:3, reps:'8', w:'90–92,5', rest:120, v:'machine-plate-loaded-row'},
+      {n:'Ф', name:'Финишер — круг', sets:3, reps:'3 круга', w:'—', rest:120, circuit:[
+        ['Махи гирей — 15 (16–20 кг)','kettlebell-swing'],
+        ['Отжимания от пола — 10',null],
+        ['Гоблет-присед — 10 (28 кг)','dumbbell-goblet-squat'],
+        ['Прогулка фермера — 30 м (2×28 кг)','kettlebell-farmers-carry'],
+        ['Планка — 30 с','forearm-plank']
+      ], note:'Без отдыха внутри круга, 2 мин между кругами.'}
+    ],
+    cardio:'8 мин спокойной ходьбы на дорожке.',
+    cool:'Растяжка всех основных групп по 30 с.'
+  }
+];
+
+/* ---------- storage: Telegram CloudStorage with localStorage fallback ---------- */
+const cloud = tg && tg.CloudStorage && tg.isVersionAtLeast && tg.isVersionAtLeast('6.9') ? tg.CloudStorage : null;
+const state = {};
+function lsGet(k){ try { return localStorage.getItem(k); } catch(e){ return null; } }
+function lsSet(k,v){ try { localStorage.setItem(k,v); } catch(e){} }
+function load(){
+  return new Promise(res=>{
+    const keys = WORKOUTS.map(w=>w.id).concat(['meta']);
+    const apply = vals => { keys.forEach(k=>{ try { state[k] = vals[k] ? JSON.parse(vals[k]) : {}; } catch(e){ state[k] = {}; } }); res(); };
+    if (cloud) {
+      cloud.getItems(keys, (err, vals) => {
+        if (err || !vals) { const v={}; keys.forEach(k=>v[k]=lsGet('wp_'+k)); apply(v); }
+        else apply(vals);
+      });
+    } else { const v={}; keys.forEach(k=>v[k]=lsGet('wp_'+k)); apply(v); }
+  });
+}
+function save(k){
+  const v = JSON.stringify(state[k] || {});
+  lsSet('wp_'+k, v);
+  if (cloud) cloud.setItem(k, v, ()=>{});
+}
+
+/* ---------- helpers ---------- */
+function haptic(type){ try { if (type==='light') tg.HapticFeedback.impactOccurred('light'); else tg.HapticFeedback.notificationOccurred(type); } catch(e){} }
+function openVideo(slug){ const url = MW(slug); if (tg && tg.openLink) tg.openLink(url); else window.open(url, '_blank'); }
+function fmt(s){ const m=Math.floor(Math.max(0,s)/60), r=Math.max(0,s)%60; return m+':'+String(r).padStart(2,'0'); }
+function restLabel(s){ if(!s) return 'без отдыха'; return s>=120 ? (s/60).toString().replace('.',',')+' мин' : s+' с'; }
+function esc(s){ return String(s).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+/* ---------- timer ---------- */
+let tEnd = 0, tInt = null;
+const tEl = document.getElementById('timer'), tVal = document.getElementById('tval'), tLbl = document.getElementById('tlbl');
+function startTimer(sec, label){
+  if (!sec) { stopTimer(); return; }
+  tEnd = Date.now() + sec*1000;
+  tLbl.textContent = 'Отдых · ' + label;
+  tEl.classList.add('show'); tEl.classList.remove('over');
+  clearInterval(tInt); tick(); tInt = setInterval(tick, 250);
+}
+function tick(){
+  const left = Math.ceil((tEnd - Date.now())/1000);
+  tVal.textContent = fmt(left);
+  if (left <= 0 && !tEl.classList.contains('over')) {
+    tEl.classList.add('over'); tLbl.textContent = 'Время! Следующий подход'; haptic('success');
+    clearInterval(tInt); setTimeout(()=>{ if (tEl.classList.contains('over')) stopTimer(); }, 6000);
+  }
+}
+function stopTimer(){ clearInterval(tInt); tEl.classList.remove('show','over'); }
+document.getElementById('tstop').onclick = stopTimer;
+document.getElementById('tplus').onclick = ()=>{ if (tEl.classList.contains('over')) { tEnd = Date.now(); tEl.classList.remove('over'); clearInterval(tInt); tInt=setInterval(tick,250);} tEnd += 30000; tick(); };
+
+/* ---------- render ---------- */
+let current = (lsGet('wp_tab') || 'w1');
+function renderTabs(){
+  const nav = document.getElementById('tabs');
+  const meta = state.meta || {};
+  nav.innerHTML = WORKOUTS.map(w=>`<button class="tab ${w.id===current?'active':''}" data-id="${w.id}">${w.short}${meta[w.id]?'<span class="tick">✓</span>':''}</button>`).join('')
+    + `<button class="tab ${current==='rules'?'active':''}" data-id="rules">Правила</button>`;
+  nav.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{ current=b.dataset.id; lsSet('wp_tab',current); haptic('light'); render(); window.scrollTo(0,0); });
+}
+function render(){
+  renderTabs();
+  const main = document.getElementById('main');
+  if (current === 'rules') { main.innerHTML = rulesHtml(); return; }
+  const w = WORKOUTS.find(x=>x.id===current) || WORKOUTS[0];
+  const st = state[w.id] = state[w.id] || {};
+  st.sets = st.sets || {}; st.wt = st.wt || {};
+  const meta = state.meta || {};
+  let html = `<h1>Тренировка ${w.short.slice(1)} — ${esc(w.title)}</h1><p class="sub">${esc(w.focus)}</p>`;
+  html += `<div class="card info"><b>Разминка, 8 мин</b>${esc(WARMUP)}</div>`;
+  w.ex.forEach((e,i)=>{
+    const done = st.sets[i] || [];
+    const allDone = done.filter(Boolean).length >= e.sets;
+    html += `<div class="card ${allDone?'done-ex':''}">
+      <div class="ex-head"><div class="num">${esc(e.n)}</div><div class="ex-title">${esc(e.name)}</div>
+      ${e.v?`<button class="video" data-v="${e.v}">▶ видео${e.approx?' ≈':''}</button>`:''}</div>
+      <div class="meta">${e.circuit?`<div class="pill"><span>круги</span> ${e.sets}</div>`:`<div class="pill"><span>подходы</span> ${e.sets} × ${esc(e.reps)}</div><div class="pill"><span>вес</span> ${esc(e.w)}</div>`}<div class="pill"><span>отдых</span> ${restLabel(e.rest)}</div></div>`;
+    if (e.circuit) {
+      html += `<ol class="circuit">${e.circuit.map(c=>`<li>${esc(c[0])}${c[1]?` <button class="video" data-v="${c[1]}">▶</button>`:''}</li>`).join('')}</ol>`;
+    }
+    html += `<div class="sets">`;
+    for (let s=0; s<e.sets; s++) html += `<button class="set ${done[s]?'done':''}" data-i="${i}" data-s="${s}">${s+1}</button>`;
+    if (!e.circuit && e.w !== '—') html += `<label class="w-input">факт, кг <input inputmode="decimal" data-i="${i}" value="${esc(st.wt[i]||'')}" placeholder="—"></label>`;
+    html += `</div>${e.note?`<div class="note">${esc(e.note)}</div>`:''}</div>`;
+  });
+  html += `<div class="card info"><b>Кардио</b>${esc(w.cardio)}</div>`;
+  html += `<div class="card info"><b>Заминка</b>${esc(w.cool)}</div>`;
+  const fin = meta[w.id];
+  html += `<button class="finish ${fin?'is-done':''}" id="finish">${fin?'✓ Выполнено '+esc(fin):'Тренировка выполнена'}</button>`;
+  html += `<button class="reset" id="reset">Сбросить отметки этой тренировки</button>`;
+  main.innerHTML = html;
+
+  main.querySelectorAll('.video').forEach(b=>b.onclick=()=>openVideo(b.dataset.v));
+  main.querySelectorAll('.set').forEach(b=>b.onclick=()=>{
+    const i=+b.dataset.i, s=+b.dataset.s, e=w.ex[i];
+    const arr = st.sets[i] = st.sets[i] || [];
+    arr[s] = !arr[s]; save(w.id);
+    if (arr[s]) { haptic('light'); const last = arr.filter(Boolean).length >= e.sets; if (!last || e.circuit) startTimer(e.rest, e.name); else if (e.rest) startTimer(e.rest, 'к следующему упражнению'); }
+    render();
+  });
+  main.querySelectorAll('.w-input input').forEach(inp=>inp.onchange=()=>{ st.wt[inp.dataset.i]=inp.value.trim(); save(w.id); });
+  document.getElementById('finish').onclick=()=>{
+    state.meta = state.meta || {};
+    if (state.meta[w.id]) delete state.meta[w.id];
+    else { state.meta[w.id] = new Date().toLocaleDateString('ru-RU',{day:'numeric',month:'long'}); haptic('success'); }
+    save('meta'); render();
+  };
+  document.getElementById('reset').onclick=()=>{
+    const go = ()=>{ state[w.id] = {}; save(w.id); stopTimer(); render(); };
+    if (tg && tg.showConfirm && tg.isVersionAtLeast('6.2')) tg.showConfirm('Сбросить все отметки и веса этой тренировки?', ok=>{ if(ok) go(); });
+    else if (confirm('Сбросить все отметки и веса этой тренировки?')) go();
+  };
+}
+function rulesHtml(){
+  return `<h1>Правила</h1><p class="sub">55–65 мин на тренировку, по порядку Т1 → Т5, по возможности через день.</p>
+  <div class="card info"><ul class="plain">
+    <li><b style="display:inline">Интенсивность:</b> в каждом подходе 1–2 повтора «в запасе».</li>
+    <li><b style="display:inline">Прогрессия:</b> сделал верх диапазона во всех подходах — в следующий раз +2,5 кг на верх, +5 кг на ноги.</li>
+    <li><b style="display:inline">Вес гантелей:</b> «2×20» = по 20 кг в каждой руке.</li>
+    <li><b style="display:inline">Темп:</b> вниз 2–3 с, вверх 1 с, без рывков.</li>
+    <li><b style="display:inline">Суперсет (a + b):</b> подход a, сразу подход b, потом отдых.</li>
+    <li><b style="display:inline">Стоп-сигнал:</b> острая боль в суставе или пояснице — прекращай и меняй упражнение.</li>
+    <li><b style="display:inline">Питание и сон:</b> белок ≈180–200 г в день, калории на поддержании или +200–300, сон 7–8 ч.</li>
+  </ul></div>
+  <div class="card info"><b>На праздниках</b>2–3 раза в неделю по 20 мин, 3–4 круга: отжимания, болгарские выпады 10/нога, ягодичный мост на одной ноге 12/нога, тяга резинки 15, обратные отжимания от стула 12, планка 40 с. Плюс 8–10 тыс. шагов в день. Первая неделя после паузы — веса −10–15%.</div>
+  <div class="card info"><b>Как пользоваться</b>Нажимай кружок подхода — он отметится и запустится таймер отдыха. «▶ видео» открывает демонстрацию. В поле «факт, кг» запиши, с каким весом реально работал. Всё сохраняется в Telegram.</div>`;
+}
+
+load().then(render);
+</script>
+</body>
+</html>
