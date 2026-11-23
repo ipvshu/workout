@@ -78,15 +78,29 @@ export default {
     const url = new URL(req.url);
     if (!env.BOT_TOKEN) return new Response('BOT_TOKEN secret is not set', { status: 500 });
     if (url.pathname === '/setup') {
-      const res = await tg(env, 'setWebhook', {
+      const body = {
         url: `${url.origin}/tg`, secret_token: await secretOf(env),
         allowed_updates: ['message', 'callback_query'], drop_pending_updates: true
-      });
+      };
+      let res;
+      for (let k = 0; k < 3; k++) {
+        res = await tg(env, 'setWebhook', body);
+        if (res.ok || res.error_code !== 429) break;
+        await new Promise(r => setTimeout(r, ((res.parameters && res.parameters.retry_after) || 5) * 1000 + 1000));
+      }
       await tg(env, 'setMyCommands', { commands: [
         { command: 'start', description: 'Выбрать тренировку' },
         { command: 'stop', description: 'Остановить тренировку' }] });
       return new Response(res.ok ? 'Готово! Webhook установлен. Открой бота в Telegram и нажми /start.' : 'Ошибка: ' + JSON.stringify(res),
         { headers: { 'content-type': 'text/plain; charset=utf-8' } });
+    }
+    if (url.pathname === '/info') {
+      const me = await tg(env, 'getMe', {});
+      const wh = await tg(env, 'getWebhookInfo', {});
+      const r = wh.result || {};
+      return new Response(JSON.stringify({ bot: me.result && me.result.username, me_error: me.ok ? undefined : me,
+        webhook: r.url, pending: r.pending_update_count, last_error: r.last_error_message, last_error_date: r.last_error_date,
+        wh_error: wh.ok ? undefined : wh }, null, 2), { headers: { 'content-type': 'application/json; charset=utf-8' } });
     }
     if (url.pathname === '/tg' && req.method === 'POST') {
       if (req.headers.get('X-Telegram-Bot-Api-Secret-Token') !== await secretOf(env)) return new Response('forbidden', { status: 403 });
