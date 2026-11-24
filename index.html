@@ -56,6 +56,19 @@
   #timer .lbl{flex:1;font-size:13px;opacity:.9}
   #timer button{border:0;border-radius:10px;padding:8px 10px;background:rgba(255,255,255,.22);color:inherit;font:inherit;font-weight:600}
   #timer.over{background:var(--ok)}
+  .acts{display:flex;flex-direction:column;align-items:flex-end;gap:2px}
+  .swap{color:var(--hint);font-size:12px;background:none;border:0;padding:2px 0;font-family:inherit;white-space:nowrap}
+  .swap.on{color:var(--link);font-weight:600}
+  #sheet{position:fixed;inset:0;z-index:20;background:rgba(0,0,0,.45);display:none;align-items:flex-end}
+  #sheet.show{display:flex}
+  .sh-body{background:var(--bg);width:100%;border-radius:16px 16px 0 0;padding:14px 12px 20px;max-height:80vh;overflow:auto}
+  .sh-title{font-weight:700;margin:0 4px 10px}
+  .sh-opt{display:flex;align-items:center;gap:8px;background:var(--bg2);border-radius:12px;margin-bottom:8px;padding:4px 10px 4px 4px;border:2px solid transparent}
+  .sh-opt.active{border-color:var(--btn)}
+  .sh-pick{flex:1;text-align:left;background:none;border:0;color:var(--text);font:inherit;padding:8px}
+  .sh-pick span{color:var(--hint);font-size:13px}
+  .tag{font-size:11px;color:var(--hint);font-weight:400}
+  .sh-close{width:100%;border:0;border-radius:12px;padding:12px;background:var(--bg2);color:var(--text);font:inherit;font-weight:600;margin-top:4px}
   ul.plain{margin:4px 0 0;padding-left:18px}
   ul.plain li{margin:3px 0}
 </style>
@@ -63,6 +76,7 @@
 <body>
 <header><nav class="tabs" id="tabs"></nav></header>
 <main id="main"></main>
+<div id="sheet"><div class="sh-body"></div></div>
 <div id="timer"><div class="t" id="tval">0:00</div><div class="lbl" id="tlbl">Отдых</div><button id="tplus">+30 с</button><button id="tstop">✕</button></div>
 
 <script>
@@ -75,69 +89,110 @@ const WARMUP = 'Дорожка 5 мин (уклон 8%, 5 км/ч), 10 вращ�
 const WORKOUTS = [
   { id:'w1', short:'Т1', title:'Грудь, плечи, квадрицепс', focus:'Жимовые движения и передняя поверхность бедра.',
     ex:[
-      {n:'1', name:'Жим ногами сидя', sets:4, reps:'10–12', w:'85', rest:120, v:'machine-leg-press'},
-      {n:'2', name:'Жим гантелей на наклонной 30°', sets:4, reps:'8–10', w:'2×24–28', rest:120, v:'dumbbell-incline-bench-press', note:'Новое упражнение — подбери вес в разминке.'},
-      {n:'3', name:'Сведение в тренажёре (бабочка)', sets:3, reps:'12', w:'27,5', rest:75, v:'machine-pec-fly'},
-      {n:'4', name:'Плие-присед с гантелью', sets:3, reps:'12', w:'34', rest:90, v:'dumbbell-sumo-squat', approx:true},
-      {n:'5a', name:'Махи гантелями в стороны стоя', sets:3, reps:'12–15', w:'2×10–12', rest:0, v:'dumbbell-lateral-raise', note:'Суперсет: сразу 5b, без отдыха.'},
-      {n:'5b', name:'Разгибание рук на блоке (канат)', sets:3, reps:'12', w:'подбор', rest:75, v:'cable-rope-pushdown'},
-      {n:'6', name:'Прогулка фермера', sets:3, reps:'30 м', w:'2×28–32', rest:60, v:'kettlebell-farmers-carry'},
-      {n:'7', name:'Планка на локтях', sets:3, reps:'40 с', w:'—', rest:45, v:'forearm-plank'}
+      {n:'1', name:'Гоблет-присед', sets:4, reps:'10', w:'32–36', rest:120, v:'dumbbell-goblet-squat',
+        alt:[['Болгарские сплит-приседания с гантелями','2×12–16','dumbbell-bulgarian-split-squat','8–10 / нога'],['Сплит-присед с опорой','16–20','dumbbell-assisted-bulgarian-split-squat','10 / нога'],['Выпады с гантелями в ходьбе','2×16–20','lunge-walking','10 шагов / нога']]},
+      {n:'2', name:'Разгибание ног в тренажёре', sets:3, reps:'12', w:'35', rest:75, v:'machine-leg-extension',
+        alt:[['Разгибание ног с гантелью (сидя на скамье)','12–16','dumbbell-leg-extension'],['Плие-присед с гантелью','30–32','dumbbell-sumo-squat']]},
+      {n:'3', name:'Жим гантелей на наклонной 30°', sets:4, reps:'8–10', w:'2×24–28', rest:120, v:'dumbbell-incline-bench-press', note:'Новое упражнение — подбери вес в разминке.',
+        alt:[['Жим гантелей лёжа','2×26–30','dumbbell-bench-press'],['Отжимания от пола','—',null,'максимум − 2']]},
+      {n:'4', name:'Сведение в тренажёре (бабочка)', sets:3, reps:'12', w:'27,5', rest:75, v:'machine-pec-fly',
+        alt:[['Разводка гантелей на наклонной','2×18–20','dumbbell-incline-chest-fly']]},
+      {n:'5', name:'Плие-присед с гантелью', sets:3, reps:'12', w:'34', rest:90, v:'dumbbell-sumo-squat', approx:true,
+        alt:[['Отведение ног в тренажёре','45','machine-hip-abduction','15'],['Ягодичный мост со штангой','старт 60','barbell-hip-thrust','10–12']]},
+      {n:'6a', name:'Махи гантелями в стороны стоя', sets:3, reps:'12–15', w:'2×10–12', rest:0, v:'dumbbell-lateral-raise', note:'Суперсет: сразу 6b, без отдыха.',
+        alt:[['Тяга штанги к подбородку','30','barbell-upright-row','12'],['Махи гантелями в наклоне','2×16–20','dumbbell-rear-delt-fly']]},
+      {n:'6b', name:'Разгибание рук на блоке (канат)', sets:3, reps:'12', w:'подбор', rest:75, v:'cable-rope-pushdown',
+        alt:[['Разгибание с канатом из-за головы','подбор','cable-rope-overhead-tricep-extension'],['Обратные отжимания от скамьи','—',null,'12–15']]},
+      {n:'7', name:'Прогулка фермера', sets:3, reps:'30 м', w:'2×28–32', rest:60, v:'kettlebell-farmers-carry',
+        alt:[['Махи гирей','16–20','kettlebell-swing','15']]},
+      {n:'8', name:'Планка на локтях', sets:3, reps:'40 с', w:'—', rest:45, v:'forearm-plank',
+        alt:[['«Мёртвый жук»','—','dead-bug','10 / сторона'],['Жим Паллофа','подбор','band-pallof-press','10 / сторона']]}
     ],
     cardio:'10 мин интервалы на дорожке: 5 × (1 мин в горку 10–12%, 6 км/ч + 1 мин спокойно 2%, 4,5 км/ч).',
     cool:'Растяжка груди у стены и квадрицепса стоя, по 30 с на сторону.'
   },
   { id:'w2', short:'Т2', title:'Спина и задняя поверхность', focus:'Тяги и разгибание таза. Румынскую тягу начинай легко.',
     ex:[
-      {n:'1', name:'Тяга верхнего блока широким хватом', sets:4, reps:'8–10', w:'60', rest:120, v:'machine-pulldown'},
-      {n:'2', name:'Румынская тяга с гантелями', sets:4, reps:'10', w:'2×28 → 2×32', rest:120, v:'dumbbell-romanian-deadlift'},
-      {n:'3', name:'Рычажная тяга сидя', sets:4, reps:'10', w:'87,5–90', rest:120, v:'machine-plate-loaded-row'},
-      {n:'4', name:'Сгибание ног сидя', sets:3, reps:'12', w:'42,5', rest:75, v:'machine-seated-leg-curl'},
-      {n:'5', name:'Обратная бабочка', sets:3, reps:'15', w:'10', rest:60, v:'machine-reverse-fly'},
-      {n:'6', name:'Подъём гантелей на бицепс стоя', sets:3, reps:'10–12', w:'2×12–14', rest:75, v:'dumbbell-curl'},
-      {n:'7', name:'Махи гирей', sets:3, reps:'15', w:'20–24', rest:60, v:'kettlebell-swing'},
-      {n:'8', name:'Жим Паллофа на блоке', sets:3, reps:'10 / сторона', w:'подбор', rest:45, v:'band-pallof-press', approx:true}
+      {n:'1', name:'Тяга верхнего блока широким хватом', sets:4, reps:'8–10', w:'60', rest:120, v:'machine-pulldown',
+        alt:[['Тяга верхнего блока обратным хватом','55–57,5','underhand-pulldown'],['Подтягивания в гравитроне','−5 кг противовеса','machine-assisted-pull-up','6–8']]},
+      {n:'2', name:'Румынская тяга с гантелями', sets:4, reps:'10', w:'2×28 → 2×32', rest:120, v:'dumbbell-romanian-deadlift',
+        alt:[['Ягодичный мост со штангой','старт 60','barbell-hip-thrust','10–12'],['Сгибание ног сидя','40','machine-seated-leg-curl','12']]},
+      {n:'3', name:'Рычажная тяга сидя', sets:4, reps:'10', w:'87,5–90', rest:120, v:'machine-plate-loaded-row',
+        alt:[['Тяга нижнего блока узким хватом','55','machine-seated-cable-row','12'],['Тяга гантели одной рукой в наклоне','26–30',null,'10 / рука']]},
+      {n:'4', name:'Сгибание ног сидя', sets:3, reps:'12', w:'42,5', rest:75, v:'machine-seated-leg-curl',
+        alt:[['Румынская тяга с гантелями (лёгкая)','2×20–24','dumbbell-romanian-deadlift'],['Ягодичный мост со штангой','старт 60','barbell-hip-thrust']]},
+      {n:'5', name:'Обратная бабочка', sets:3, reps:'15', w:'10', rest:60, v:'machine-reverse-fly',
+        alt:[['Махи гантелями в наклоне','2×16–20','dumbbell-rear-delt-fly']]},
+      {n:'6', name:'Подъём гантелей на бицепс стоя', sets:3, reps:'10–12', w:'2×12–14', rest:75, v:'dumbbell-curl',
+        alt:[['Сгибание рук на нижнем блоке','подбор','cable-bar-curl','12']]},
+      {n:'7', name:'Махи гирей', sets:3, reps:'15', w:'20–24', rest:60, v:'kettlebell-swing',
+        alt:[['Прогулка фермера','2×28–32','kettlebell-farmers-carry','30 м']]},
+      {n:'8', name:'Жим Паллофа на блоке', sets:3, reps:'10 / сторона', w:'подбор', rest:45, v:'band-pallof-press', approx:true,
+        alt:[['Планка на локтях','—','forearm-plank','40 с'],['«Мёртвый жук»','—','dead-bug']]}
     ],
     cardio:'12 мин гребной тренажёр: 8 × (30 с интенсивно + 60 с легко). Нет гребного — велотренажёр так же.',
     cool:'Наклон к прямой ноге и поза ребёнка, по 30 с.'
   },
   { id:'w3', short:'Т3', title:'Ноги, ягодицы, плечи', focus:'Ягодицы и жим над головой. Первый подход в новых упражнениях — пробный.',
     ex:[
-      {n:'1', name:'Гоблет-присед', sets:4, reps:'10', w:'32–36', rest:120, v:'dumbbell-goblet-squat'},
-      {n:'2', name:'Ягодичный мост со штангой', sets:4, reps:'10–12', w:'старт 60', rest:120, v:'barbell-hip-thrust'},
-      {n:'3', name:'Жим гантелей сидя над головой', sets:4, reps:'8–10', w:'2×20–24', rest:120, v:'dumbbell-seated-overhead-press'},
-      {n:'4', name:'Жим одной ногой', sets:3, reps:'10 / нога', w:'65', rest:90, v:'machine-single-leg-leg-press'},
-      {n:'5', name:'Отведение ног в тренажёре', sets:3, reps:'15', w:'47,5', rest:60, v:'machine-hip-abduction'},
-      {n:'6', name:'Тяга штанги к подбородку', sets:3, reps:'12', w:'32,5', rest:75, v:'barbell-upright-row', note:'Локти не выше плеч.'},
-      {n:'7', name:'Выпады с гантелями в ходьбе', sets:2, reps:'10 шагов / нога', w:'2×16–20', rest:90, v:'lunge-walking', approx:true},
-      {n:'8', name:'«Мёртвый жук»', sets:3, reps:'10 / сторона', w:'—', rest:45, v:'dead-bug'}
+      {n:'1', name:'Присед с гантелями в опущенных руках', sets:4, reps:'10', w:'2×36–40', rest:120, v:'dumbbell-goblet-squat', approx:true, note:'Как гоблет, но гантели по бокам.',
+        alt:[['Гоблет-присед','32–36','dumbbell-goblet-squat'],['Выпады с гантелями в ходьбе','2×16–20','lunge-walking','10 шагов / нога']]},
+      {n:'2', name:'Ягодичный мост со штангой', sets:4, reps:'10–12', w:'старт 60', rest:120, v:'barbell-hip-thrust',
+        alt:[['Румынская тяга с гантелями','2×24–28','dumbbell-romanian-deadlift','10']]},
+      {n:'3', name:'Жим гантелей сидя над головой', sets:4, reps:'8–10', w:'2×20–24', rest:120, v:'dumbbell-seated-overhead-press',
+        alt:[['Тяга штанги к подбородку','30–32,5','barbell-upright-row','12'],['Махи гантелями в стороны','2×10–12','dumbbell-lateral-raise','12–15']]},
+      {n:'4', name:'Жим одной ногой', sets:3, reps:'10 / нога', w:'65', rest:90, v:'machine-single-leg-leg-press',
+        alt:[['Разгибание ног в тренажёре','35','machine-leg-extension','12'],['Сплит-присед с опорой','16–20','dumbbell-assisted-bulgarian-split-squat'],['Болгарские сплит-приседания с гантелями','2×12–16','dumbbell-bulgarian-split-squat','8–10 / нога']]},
+      {n:'5', name:'Отведение ног в тренажёре', sets:3, reps:'15', w:'47,5', rest:60, v:'machine-hip-abduction',
+        alt:[['Плие-присед с гантелью','32–34','dumbbell-sumo-squat','12']]},
+      {n:'6', name:'Тяга штанги к подбородку', sets:3, reps:'12', w:'32,5', rest:75, v:'barbell-upright-row', note:'Локти не выше плеч.',
+        alt:[['Махи гантелями в стороны','2×10–12','dumbbell-lateral-raise','12–15']]},
+      {n:'7', name:'Выпады с гантелями в ходьбе', sets:2, reps:'10 шагов / нога', w:'2×16–20', rest:90, v:'lunge-walking', approx:true,
+        alt:[['Разгибание ног в тренажёре','35','machine-leg-extension','12'],['Гоблет-присед','28–32','dumbbell-goblet-squat','12']]},
+      {n:'8', name:'«Мёртвый жук»', sets:3, reps:'10 / сторона', w:'—', rest:45, v:'dead-bug',
+        alt:[['Планка на локтях','—','forearm-plank','40 с']]}
     ],
     cardio:'12 мин велотренажёр ровно, пульс 120–135.',
     cool:'«Голубь» и растяжка плечевого сустава, по 30 с.'
   },
   { id:'w4', short:'Т4', title:'Верх тела', focus:'Объём на спину, грудь и руки. Ноги отдыхают.',
     ex:[
-      {n:'1', name:'Подтягивания в гравитроне нейтральным хватом', sets:4, reps:'6–8', w:'−5 кг противовеса', rest:120, v:'machine-assisted-pull-up', approx:true},
-      {n:'2', name:'Жим гантелей лёжа', sets:4, reps:'8–10', w:'2×28–32', rest:120, v:'dumbbell-bench-press'},
-      {n:'3', name:'Тяга нижнего блока узким хватом', sets:3, reps:'12', w:'55', rest:90, v:'machine-seated-cable-row'},
-      {n:'4', name:'Разводка гантелей на наклонной 45°', sets:3, reps:'12', w:'2×20–22', rest:75, v:'dumbbell-incline-chest-fly'},
-      {n:'5a', name:'Махи гантелями в наклоне', sets:3, reps:'12–15', w:'2×20', rest:0, v:'dumbbell-rear-delt-fly', note:'Суперсет: сразу 5b.'},
-      {n:'5b', name:'Махи гантелями в стороны', sets:3, reps:'12–15', w:'2×10', rest:75, v:'dumbbell-lateral-raise'},
-      {n:'6a', name:'Сгибание рук на нижнем блоке', sets:3, reps:'12', w:'подбор', rest:0, v:'cable-bar-curl', note:'Суперсет: сразу 6b.'},
-      {n:'6b', name:'Разгибание с канатом из-за головы', sets:3, reps:'12', w:'подбор', rest:75, v:'cable-rope-overhead-tricep-extension'},
-      {n:'7', name:'Броски медбола в пол', sets:3, reps:'10', w:'6–8', rest:60, v:'slam'},
-      {n:'8', name:'Переноска гантели в одной руке', sets:2, reps:'30 м / рука', w:'28–32', rest:60, v:'kettlebell-farmers-carry', approx:true}
+      {n:'1', name:'Подтягивания в гравитроне нейтральным хватом', sets:4, reps:'6–8', w:'−5 кг противовеса', rest:120, v:'machine-assisted-pull-up', approx:true,
+        alt:[['Тяга верхнего блока широким хватом','60','machine-pulldown','8–10'],['Тяга верхнего блока обратным хватом','55–57,5','underhand-pulldown','8–10']]},
+      {n:'2', name:'Жим гантелей лёжа', sets:4, reps:'8–10', w:'2×28–32', rest:120, v:'dumbbell-bench-press',
+        alt:[['Жим гантелей на наклонной 30°','2×24–28','dumbbell-incline-bench-press'],['Отжимания от пола','—',null,'максимум − 2']]},
+      {n:'3', name:'Тяга нижнего блока узким хватом', sets:3, reps:'12', w:'55', rest:90, v:'machine-seated-cable-row',
+        alt:[['Рычажная тяга сидя','85','machine-plate-loaded-row','10'],['Тяга гантели одной рукой в наклоне','26–30',null,'10 / рука']]},
+      {n:'4', name:'Разводка гантелей на наклонной 45°', sets:3, reps:'12', w:'2×20–22', rest:75, v:'dumbbell-incline-chest-fly',
+        alt:[['Сведение в тренажёре (бабочка)','27,5','machine-pec-fly']]},
+      {n:'5a', name:'Махи гантелями в наклоне', sets:3, reps:'12–15', w:'2×20', rest:0, v:'dumbbell-rear-delt-fly', note:'Суперсет: сразу 5b.',
+        alt:[['Обратная бабочка','10','machine-reverse-fly','15']]},
+      {n:'5b', name:'Махи гантелями в стороны', sets:3, reps:'12–15', w:'2×10', rest:75, v:'dumbbell-lateral-raise',
+        alt:[['Тяга штанги к подбородку','30','barbell-upright-row','12']]},
+      {n:'6a', name:'Сгибание рук на нижнем блоке', sets:3, reps:'12', w:'подбор', rest:0, v:'cable-bar-curl', note:'Суперсет: сразу 6b.',
+        alt:[['Подъём гантелей на бицепс','2×12–14','dumbbell-curl']]},
+      {n:'6b', name:'Разгибание с канатом из-за головы', sets:3, reps:'12', w:'подбор', rest:75, v:'cable-rope-overhead-tricep-extension',
+        alt:[['Разгибание рук на блоке (канат вниз)','подбор','cable-rope-pushdown'],['Обратные отжимания от скамьи','—',null,'12–15']]},
+      {n:'7', name:'Броски медбола в пол', sets:3, reps:'10', w:'6–8', rest:60, v:'slam',
+        alt:[['Махи гирей','16–20','kettlebell-swing','15']]},
+      {n:'8', name:'Переноска гантели в одной руке', sets:2, reps:'30 м / рука', w:'28–32', rest:60, v:'kettlebell-farmers-carry', approx:true,
+        alt:[['Прогулка фермера','2×28–32','kettlebell-farmers-carry','30 м'],['Планка на локтях','—','forearm-plank','40 с']]}
     ],
     cardio:'10 мин дорожка в горку: уклон 10%, 5 км/ч, без поручней.',
     cool:'Растяжка груди и спины, бабочка сидя, по 30 с.'
   },
   { id:'w5', short:'Т5', title:'Финал: сила + круговая', focus:'Тяжелее и меньше повторов, потом функциональный круг.',
     ex:[
-      {n:'1', name:'Жим ногами сидя', sets:4, reps:'8', w:'90–95', rest:150, v:'machine-leg-press'},
-      {n:'2', name:'Жим гантелей на наклонной 30°', sets:4, reps:'6–8', w:'+2 кг к Т1', rest:150, v:'dumbbell-incline-bench-press'},
-      {n:'3', name:'Тяга верхнего блока обратным хватом', sets:4, reps:'8', w:'60', rest:120, v:'underhand-pulldown'},
-      {n:'4', name:'Румынская тяга с гантелями', sets:3, reps:'8', w:'+2 кг к Т2', rest:120, v:'dumbbell-romanian-deadlift'},
-      {n:'5', name:'Рычажная тяга сидя', sets:3, reps:'8', w:'90–92,5', rest:120, v:'machine-plate-loaded-row'},
+      {n:'1', name:'Гоблет-присед (тяжёлый)', sets:4, reps:'8', w:'36–40', rest:150, v:'dumbbell-goblet-squat',
+        alt:[['Присед с гантелями в опущенных руках','2×40',null],['Разгибание ног в тренажёре','37,5–40','machine-leg-extension','10']]},
+      {n:'2', name:'Жим гантелей на наклонной 30°', sets:4, reps:'6–8', w:'+2 кг к Т1', rest:150, v:'dumbbell-incline-bench-press',
+        alt:[['Жим гантелей лёжа','+2 кг к Т4','dumbbell-bench-press']]},
+      {n:'3', name:'Тяга верхнего блока обратным хватом', sets:4, reps:'8', w:'60', rest:120, v:'underhand-pulldown',
+        alt:[['Тяга верхнего блока широким хватом','60–62,5','machine-pulldown'],['Подтягивания в гравитроне','−5 кг противовеса','machine-assisted-pull-up','6–8']]},
+      {n:'4', name:'Румынская тяга с гантелями', sets:3, reps:'8', w:'+2 кг к Т2', rest:120, v:'dumbbell-romanian-deadlift',
+        alt:[['Ягодичный мост со штангой','+10 кг к Т3','barbell-hip-thrust']]},
+      {n:'5', name:'Рычажная тяга сидя', sets:3, reps:'8', w:'90–92,5', rest:120, v:'machine-plate-loaded-row',
+        alt:[['Тяга нижнего блока узким хватом','57,5–60','machine-seated-cable-row'],['Тяга гантели одной рукой в наклоне','28–32',null,'8 / рука']]},
       {n:'Ф', name:'Финишер — круг', sets:3, reps:'3 круга', w:'—', rest:120, circuit:[
         ['Махи гирей — 15 (16–20 кг)','kettlebell-swing'],
         ['Отжимания от пола — 10',null],
@@ -212,6 +267,31 @@ function renderTabs(){
     + `<button class="tab ${current==='rules'?'active':''}" data-id="rules">Правила</button>`;
   nav.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{ current=b.dataset.id; lsSet('wp_tab',current); haptic('light'); render(); window.scrollTo(0,0); });
 }
+function eff(e, st, i){
+  const k = st.swap && st.swap[i];
+  if (k == null || !e.alt || !e.alt[k]) return e;
+  const a = e.alt[k];
+  return Object.assign({}, e, { name:a[0], w:a[1], v:a[2], reps:a[3]||e.reps, approx:false, note:(e.note&&/Суперсет/.test(e.note)?e.note+' ':'')+'Замена: вместо «'+e.name+'».', swapped:true });
+}
+function openSwap(w, i){
+  const st = state[w.id], e = w.ex[i], cur = st.swap ? st.swap[i] : null;
+  const sh = document.getElementById('sheet');
+  const opts = [[e.name, e.w, e.v, e.reps, null]].concat(e.alt.map((a,k)=>[a[0],a[1],a[2],a[3]||e.reps,k]));
+  sh.querySelector('.sh-body').innerHTML = `<div class="sh-title">Заменить: ${esc(e.name)}</div>` + opts.map(o=>{
+    const active = (o[4]===null && cur==null) || o[4]===cur;
+    return `<div class="sh-opt ${active?'active':''}"><button class="sh-pick" data-k="${o[4]===null?'':o[4]}"><b>${esc(o[0])}</b>${o[4]===null?' <span class="tag">исходное</span>':''}<br><span>${esc(o[3])} · ${esc(o[1])}</span></button>${o[2]?`<button class="video" data-v="${o[2]}">▶</button>`:''}</div>`;
+  }).join('') + `<button class="sh-close">Отмена</button>`;
+  sh.classList.add('show');
+  sh.querySelectorAll('.sh-pick').forEach(b=>b.onclick=()=>{
+    st.swap = st.swap || {};
+    if (b.dataset.k === '') delete st.swap[i]; else st.swap[i] = +b.dataset.k;
+    if (st.wt) delete st.wt[i];
+    save(w.id); haptic('light'); sh.classList.remove('show'); render();
+  });
+  sh.querySelectorAll('.video').forEach(b=>b.onclick=()=>openVideo(b.dataset.v));
+  sh.querySelector('.sh-close').onclick=()=>sh.classList.remove('show');
+  sh.onclick=ev=>{ if (ev.target===sh) sh.classList.remove('show'); };
+}
 function render(){
   renderTabs();
   const main = document.getElementById('main');
@@ -222,12 +302,13 @@ function render(){
   const meta = state.meta || {};
   let html = `<h1>Тренировка ${w.short.slice(1)} — ${esc(w.title)}</h1><p class="sub">${esc(w.focus)}</p>`;
   html += `<div class="card info"><b>Разминка, 8 мин</b>${esc(WARMUP)}</div>`;
-  w.ex.forEach((e,i)=>{
+  w.ex.forEach((e0,i)=>{
+    const e = eff(e0, st, i);
     const done = st.sets[i] || [];
     const allDone = done.filter(Boolean).length >= e.sets;
     html += `<div class="card ${allDone?'done-ex':''}">
       <div class="ex-head"><div class="num">${esc(e.n)}</div><div class="ex-title">${esc(e.name)}</div>
-      ${e.v?`<button class="video" data-v="${e.v}">▶ видео${e.approx?' ≈':''}</button>`:''}</div>
+      <div class="acts">${e.v?`<button class="video" data-v="${e.v}">▶ видео${e.approx?' ≈':''}</button>`:''}${e0.alt?`<button class="swap ${e.swapped?'on':''}" data-i="${i}">⇄ заменить</button>`:''}</div></div>
       <div class="meta">${e.circuit?`<div class="pill"><span>круги</span> ${e.sets}</div>`:`<div class="pill"><span>подходы</span> ${e.sets} × ${esc(e.reps)}</div><div class="pill"><span>вес</span> ${esc(e.w)}</div>`}<div class="pill"><span>отдых</span> ${restLabel(e.rest)}</div></div>`;
     if (e.circuit) {
       html += `<ol class="circuit">${e.circuit.map(c=>`<li>${esc(c[0])}${c[1]?` <button class="video" data-v="${c[1]}">▶</button>`:''}</li>`).join('')}</ol>`;
@@ -245,8 +326,9 @@ function render(){
   main.innerHTML = html;
 
   main.querySelectorAll('.video').forEach(b=>b.onclick=()=>openVideo(b.dataset.v));
+  main.querySelectorAll('.swap').forEach(b=>b.onclick=()=>openSwap(w, +b.dataset.i));
   main.querySelectorAll('.set').forEach(b=>b.onclick=()=>{
-    const i=+b.dataset.i, s=+b.dataset.s, e=w.ex[i];
+    const i=+b.dataset.i, s=+b.dataset.s, e=eff(w.ex[i], st, i);
     const arr = st.sets[i] = st.sets[i] || [];
     arr[s] = !arr[s]; save(w.id);
     if (arr[s]) { haptic('light'); const last = arr.filter(Boolean).length >= e.sets; if (!last || e.circuit) startTimer(e.rest, e.name); else if (e.rest) startTimer(e.rest, 'к следующему упражнению'); }
@@ -277,7 +359,7 @@ function rulesHtml(){
     <li><b style="display:inline">Питание и сон:</b> белок ≈180–200 г в день, калории на поддержании или +200–300, сон 7–8 ч.</li>
   </ul></div>
   <div class="card info"><b>На праздниках</b>2–3 раза в неделю по 20 мин, 3–4 круга: отжимания, болгарские выпады 10/нога, ягодичный мост на одной ноге 12/нога, тяга резинки 15, обратные отжимания от стула 12, планка 40 с. Плюс 8–10 тыс. шагов в день. Первая неделя после паузы — веса −10–15%.</div>
-  <div class="card info"><b>Как пользоваться</b>Нажимай кружок подхода — он отметится и запустится таймер отдыха. «▶ видео» открывает демонстрацию. В поле «факт, кг» запиши, с каким весом реально работал. Всё сохраняется в Telegram.</div>`;
+  <div class="card info"><b>Как пользоваться</b>Нажимай кружок подхода — он отметится и запустится таймер отдыха. «▶ видео» открывает демонстрацию. «⇄ заменить» — выбрать другое упражнение, если тренажёр занят или его нет. В поле «факт, кг» запиши, с каким весом реально работал. Всё сохраняется в Telegram.</div>`;
 }
 
 load().then(render);
