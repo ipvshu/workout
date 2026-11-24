@@ -41,6 +41,12 @@
   .sets{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:4px}
   .set{width:40px;height:40px;border-radius:20px;border:2px solid var(--hint);background:transparent;color:var(--text);font:inherit;font-weight:700}
   .set.done{background:var(--ok);border-color:var(--ok);color:#fff}
+  .srows{display:flex;flex-direction:column;gap:6px;margin-top:4px}
+  .srow{display:flex;align-items:center;gap:8px}
+  .srow input{width:62px;padding:8px 6px;border-radius:8px;border:1px solid var(--bg2);background:var(--bg2);color:var(--text);font:inherit;text-align:center}
+  .srow input::placeholder{color:var(--hint);opacity:.8}
+  .srow .u{font-size:13px;color:var(--hint)}
+  .srow.is-done input{border-color:var(--ok)}
   .w-input{margin-left:auto;display:flex;align-items:center;gap:4px;font-size:13px;color:var(--hint)}
   .w-input input{width:74px;padding:7px 8px;border-radius:8px;border:1px solid var(--bg2);background:var(--bg2);color:var(--text);font:inherit;text-align:center}
   .note{color:var(--hint);font-size:13px;margin-top:6px}
@@ -272,6 +278,11 @@ function renderTabs(){
     + `<button class="tab ${current==='rules'?'active':''}" data-id="rules">Правила</button>`;
   nav.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{ current=b.dataset.id; lsSet('wp_tab',current); haptic('light'); render(); window.scrollTo(0,0); });
 }
+// Подход-вес
+function num(v){ const m = String(v).replace(',', '.').match(/^\s*(?:\d+×)?(\d+(?:\.\d+)?)/); return m ? m[1].replace('.', ',') : ''; }
+function hasW(e){ return e.w !== '—'; }
+function hasR(e){ return /^\d/.test(e.reps) && !/[мс]$/.test(e.reps) && !/мин/.test(e.reps); }
+function guess(e, log, s, k){ for (let j = s - 1; j >= 0; j--) if (log[j] && log[j][k]) return log[j][k]; return k === 0 ? num(e.w) : num(e.reps); }
 function eff(e, st, i){
   const k = st.swap && st.swap[i];
   if (k == null || !e.alt || !e.alt[k]) return e;
@@ -291,6 +302,7 @@ function openSwap(w, i){
     st.swap = st.swap || {};
     if (b.dataset.k === '') delete st.swap[i]; else st.swap[i] = +b.dataset.k;
     if (st.wt) delete st.wt[i];
+    if (st.log) delete st.log[i];
     save(w.id); haptic('light'); sh.classList.remove('show'); render();
   });
   sh.querySelectorAll('.video').forEach(b=>b.onclick=()=>openVideo(b.dataset.v));
@@ -303,7 +315,7 @@ function render(){
   if (current === 'rules') { main.innerHTML = rulesHtml(); return; }
   const w = WORKOUTS.find(x=>x.id===current) || WORKOUTS[0];
   const st = state[w.id] = state[w.id] || {};
-  st.sets = st.sets || {}; st.wt = st.wt || {};
+  st.sets = st.sets || {}; st.wt = st.wt || {}; st.log = st.log || {};
   const meta = state.meta || {};
   let html = `<h1>Тренировка ${w.short.slice(1)} — ${esc(w.title)}</h1><p class="sub">${esc(w.focus)}</p>`;
   w.ex.forEach((e0,i)=>{
@@ -317,10 +329,24 @@ function render(){
     if (e.circuit) {
       html += `<ol class="circuit">${e.circuit.map(c=>`<li>${esc(c[0])}${c[1]?` <button class="video" data-v="${c[1]}">▶</button>`:''}</li>`).join('')}</ol>`;
     }
-    html += `<div class="sets">`;
-    for (let s=0; s<e.sets; s++) html += `<button class="set ${done[s]?'done':''}" data-i="${i}" data-s="${s}">${e.warm?'✓':s+1}</button>`;
-    if (!e.circuit && e.w !== '—') html += `<label class="w-input">факт, кг <input inputmode="decimal" data-i="${i}" value="${esc(st.wt[i]||'')}" placeholder="—"></label>`;
-    html += `</div>${e.note?`<div class="note">${esc(e.note)}</div>`:''}</div>`;
+    if (!e.warm && !e.circuit && (hasW(e) || hasR(e))) {
+      const log = st.log[i] || [];
+      html += `<div class="srows">`;
+      for (let s=0; s<e.sets; s++) {
+        const L = log[s] || [];
+        html += `<div class="srow ${done[s]?'is-done':''}"><button class="set ${done[s]?'done':''}" data-i="${i}" data-s="${s}">${s+1}</button>`
+          + (hasW(e) ? `<input class="lg" inputmode="decimal" data-i="${i}" data-s="${s}" data-k="0" value="${esc(L[0]||'')}" placeholder="${esc(guess(e,log,s,0)||'?')}"><span class="u">кг</span>` : '')
+          + (hasW(e) && hasR(e) ? '<span class="u">×</span>' : '')
+          + (hasR(e) ? `<input class="lg" inputmode="numeric" data-i="${i}" data-s="${s}" data-k="1" value="${esc(L[1]||'')}" placeholder="${esc(guess(e,log,s,1))}"><span class="u">повт</span>` : '')
+          + `</div>`;
+      }
+      html += `</div>`;
+    } else {
+      html += `<div class="sets">`;
+      for (let s=0; s<e.sets; s++) html += `<button class="set ${done[s]?'done':''}" data-i="${i}" data-s="${s}">${e.warm?'✓':s+1}</button>`;
+      html += `</div>`;
+    }
+    html += `${e.note?`<div class="note">${esc(e.note)}</div>`:''}</div>`;
   });
   html += `<div class="card info"><b>Кардио</b>${esc(w.cardio)}</div>`;
   html += `<div class="card info"><b>Заминка</b>${esc(w.cool)}</div>`;
@@ -334,9 +360,21 @@ function render(){
   main.querySelectorAll('.set').forEach(b=>b.onclick=()=>{
     const i=+b.dataset.i, s=+b.dataset.s, e=eff(w.ex[i], st, i);
     const arr = st.sets[i] = st.sets[i] || [];
-    arr[s] = !arr[s]; save(w.id);
+    arr[s] = !arr[s];
+    // отметил подход — пустые поля заполняются тем, что было подсказкой
+    if (arr[s] && !e.warm && !e.circuit) {
+      const log = st.log[i] = st.log[i] || [], L = log[s] = log[s] || [];
+      if (hasW(e) && !L[0]) L[0] = guess(e, log, s, 0);
+      if (hasR(e) && !L[1]) L[1] = guess(e, log, s, 1);
+    }
+    save(w.id);
     if (arr[s]) { haptic('light'); const last = arr.filter(Boolean).length >= e.sets; if (!last || e.circuit) startTimer(e.rest, e.name); else if (e.rest) startTimer(e.rest, 'к следующему упражнению'); }
     render();
+  });
+  main.querySelectorAll('input.lg').forEach(inp=>inp.onchange=()=>{
+    const i=+inp.dataset.i, s=+inp.dataset.s, k=+inp.dataset.k;
+    const log = st.log[i] = st.log[i] || [], L = log[s] = log[s] || [];
+    L[k] = inp.value.trim().replace('.', ','); save(w.id); render();
   });
   main.querySelectorAll('.w-input input').forEach(inp=>inp.onchange=()=>{ st.wt[inp.dataset.i]=inp.value.trim(); save(w.id); });
   document.getElementById('finish').onclick=()=>{
