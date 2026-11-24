@@ -58,11 +58,13 @@ const W = {
 };
 
 /* ---------------- Telegram helpers ---------------- */
+// Telegram rate-limits Cloudflare's shared IPs, so calls go through a relay on Vercel.
+const RELAY = 'https://workout-proxy.vercel.app/api/tg';
 async function tg(env, method, body) {
-  const r = await fetch(`https://api.telegram.org/bot${env.BOT_TOKEN}/${method}`, {
-    method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body)
+  const r = await fetch(`${RELAY}?method=${method}`, {
+    method: 'POST', headers: { 'content-type': 'application/json', 'x-bot-token': env.BOT_TOKEN }, body: JSON.stringify(body)
   });
-  return r.json();
+  try { return await r.json(); } catch (e) { return { ok: false, error_code: r.status, description: 'relay returned non-JSON' }; }
 }
 async function secretOf(env) {
   const d = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('wk:' + env.BOT_TOKEN));
@@ -98,7 +100,7 @@ export default {
       const me = await tg(env, 'getMe', {});
       const wh = await tg(env, 'getWebhookInfo', {});
       const r = wh.result || {};
-      return new Response(JSON.stringify({ bot: me.result && me.result.username, me_error: me.ok ? undefined : me,
+      return new Response(JSON.stringify({ bot: me.result && me.result.username, bot_id: String(env.BOT_TOKEN).split(':')[0], me_error: me.ok ? undefined : me,
         webhook: r.url, pending: r.pending_update_count, last_error: r.last_error_message, last_error_date: r.last_error_date,
         wh_error: wh.ok ? undefined : wh }, null, 2), { headers: { 'content-type': 'application/json; charset=utf-8' } });
     }
