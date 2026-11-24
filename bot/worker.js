@@ -6,6 +6,7 @@ const MW = s => 'https://musclewiki.com/exercise/' + s;
 
 const W = {
   w1: { t: 'Т1 · Грудь, плечи, квадрицепс', ex: [
+    ['🔥 Разминка: дорожка 5 мин (уклон 8%, 5 км/ч), суставная, 2 разминочных подхода к первому упражнению', 1, '8 мин', '—', 0, null],
     ['Гоблет-присед', 4, '10', '32–36', 120, 'dumbbell-goblet-squat'],
     ['Разгибание ног в тренажёре', 3, '12', '35', 75, 'machine-leg-extension'],
     ['Жим гантелей на наклонной 30°', 4, '8–10', '2×24–28', 120, 'dumbbell-incline-bench-press'],
@@ -17,6 +18,7 @@ const W = {
     ['Планка на локтях', 3, '40 с', '—', 45, 'forearm-plank']],
     cardio: 'Дорожка 10 мин: 5 × (1 мин в горку 10–12%, 6 км/ч + 1 мин спокойно).' },
   w2: { t: 'Т2 · Спина и задняя поверхность', ex: [
+    ['🔥 Разминка: дорожка 5 мин (уклон 8%, 5 км/ч), суставная, 2 разминочных подхода к первому упражнению', 1, '8 мин', '—', 0, null],
     ['Тяга верхнего блока широким хватом', 4, '8–10', '60', 120, 'machine-pulldown'],
     ['Румынская тяга с гантелями', 4, '10', '2×28 → 2×32', 120, 'dumbbell-romanian-deadlift'],
     ['Рычажная тяга сидя', 4, '10', '87,5–90', 120, 'machine-plate-loaded-row'],
@@ -27,6 +29,7 @@ const W = {
     ['Жим Паллофа на блоке', 3, '10 / сторона', 'подбор', 45, 'band-pallof-press']],
     cardio: 'Гребля 12 мин: 8 × (30 с интенсивно + 60 с легко).' },
   w3: { t: 'Т3 · Ноги, ягодицы, плечи', ex: [
+    ['🔥 Разминка: дорожка 5 мин (уклон 8%, 5 км/ч), суставная, 2 разминочных подхода к первому упражнению', 1, '8 мин', '—', 0, null],
     ['Присед с гантелями в опущенных руках', 4, '10', '2×36–40', 120, 'dumbbell-goblet-squat'],
     ['Ягодичный мост со штангой', 4, '10–12', 'старт 60', 120, 'barbell-hip-thrust'],
     ['Жим гантелей сидя над головой', 4, '8–10', '2×20–24', 120, 'dumbbell-seated-overhead-press'],
@@ -37,6 +40,7 @@ const W = {
     ['«Мёртвый жук»', 3, '10 / сторона', '—', 45, 'dead-bug']],
     cardio: 'Велотренажёр 12 мин ровно, пульс 120–135.' },
   w4: { t: 'Т4 · Верх тела', ex: [
+    ['🔥 Разминка: дорожка 5 мин (уклон 8%, 5 км/ч), суставная, 2 разминочных подхода к первому упражнению', 1, '8 мин', '—', 0, null],
     ['Гравитрон, нейтральный хват', 4, '6–8', '−5 кг противовеса', 120, 'machine-assisted-pull-up'],
     ['Жим гантелей лёжа', 4, '8–10', '2×28–32', 120, 'dumbbell-bench-press'],
     ['Тяга нижнего блока узким хватом', 3, '12', '55', 90, 'machine-seated-cable-row'],
@@ -49,6 +53,7 @@ const W = {
     ['Переноска гантели в одной руке', 2, '30 м / рука', '28–32', 60, 'kettlebell-farmers-carry']],
     cardio: 'Дорожка в горку 10 мин: уклон 10%, 5 км/ч.' },
   w5: { t: 'Т5 · Финал: сила + круг', ex: [
+    ['🔥 Разминка: дорожка 5 мин (уклон 8%, 5 км/ч), суставная, 2 разминочных подхода к первому упражнению', 1, '8 мин', '—', 0, null],
     ['Гоблет-присед (тяжёлый)', 4, '8', '36–40', 150, 'dumbbell-goblet-squat'],
     ['Жим гантелей на наклонной 30°', 4, '6–8', '+2 кг к Т1', 150, 'dumbbell-incline-bench-press'],
     ['Тяга верхнего блока обратным хватом', 4, '8', '60', 120, 'underhand-pulldown'],
@@ -153,7 +158,7 @@ export class ChatState {
       t += `\n⏳ Отдых до ${clock(c.restUntil)}`;
       kb.push([{ text: '⏭ Пропустить отдых', callback_data: 'skip' }]);
     } else if (done < sets) {
-      kb.push([{ text: `✅ Подход ${done + 1}`, callback_data: 'set' }]);
+      kb.push([{ text: c.i === 0 && name.startsWith('🔥') ? '✅ Размялся' : `✅ Подход ${done + 1}`, callback_data: 'set' }]);
     } else {
       kb.push([{ text: c.i + 1 < w.ex.length ? '➡️ Следующее упражнение' : '🏁 Завершить', callback_data: 'next' }]);
     }
@@ -200,7 +205,7 @@ export class ChatState {
       const id = d.slice(2); if (!W[id]) return;
       await this.stopRest(s);
       s.cur = { w: id, i: 0, sets: {}, fact: {}, msg: null, restUntil: null, started: Date.now() };
-      return this.send(s, this.card(s, `🏋️ <b>${esc(W[id].t)}</b>\nРазминка 8 мин: дорожка 5 мин + суставная, 2 разминочных подхода.`));
+      return this.send(s, this.card(s, `🏋️ <b>${esc(W[id].t)}</b>\nНачинаем с разминки.`));
     }
     if (!s.cur) return tg(this.env, 'sendMessage', { chat_id: s.chat, parse_mode: 'HTML', ...this.menu(s) });
     if (q.message.message_id !== s.cur.msg) s.cur.msg = q.message.message_id;
@@ -215,6 +220,7 @@ export class ChatState {
         await this.ctx.storage.setAlarm(c.restUntil);
         return this.edit(s, this.card(s));
       }
+      if (c.i === 0 && e[0].startsWith('🔥')) { c.i++; return this.send(s, this.card(s, '🔥 Разминка готова — поехали!')); }
       if (e[4] === 0 && !isLastEx) { c.i++; return this.send(s, this.card(s, '⚡ Суперсет — сразу без отдыха')); }
       if (last && isLastEx) return this.finish(s, false);
       return this.edit(s, this.card(s));
@@ -239,7 +245,7 @@ export class ChatState {
     const w = W[c.w], e = w.ex[c.i];
     let note = fromAlarm ? '⏰ <b>Отдых окончен!</b>' : '';
     const prev = c.i > 0 ? w.ex[c.i - 1] : null;
-    if (prev && prev[4] === 0 && (c.sets[c.i - 1] || 0) < prev[1]) {
+    if (prev && prev[4] === 0 && !prev[0].startsWith('🔥') && (c.sets[c.i - 1] || 0) < prev[1]) {
       c.i--; note += (note ? '\n' : '') + 'Суперсет, следующий круг:';
     } else if ((c.sets[c.i] || 0) >= e[1]) {
       if (c.i + 1 >= w.ex.length) return this.finish(s, false);
