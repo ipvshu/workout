@@ -63,6 +63,18 @@ const W = {
     cardio: 'Ходьба 8 мин спокойно + растяжка.' }
 };
 
+// Замены (как в мини-приложении): [название, вес, видео, повторы?]
+const ALT = {"w1":[null,[["Болгарские сплит-приседания с гантелями","2×12–16","dumbbell-bulgarian-split-squat","8–10 / нога"],["Сплит-присед с опорой","16–20","dumbbell-assisted-bulgarian-split-squat","10 / нога"],["Выпады с гантелями в ходьбе","2×16–20","lunge-walking","10 шагов / нога"]],[["Разгибание ног с гантелью (сидя на скамье)","12–16","dumbbell-leg-extension"],["Плие-присед с гантелью","30–32","dumbbell-sumo-squat"]],[["Жим гантелей лёжа","2×26–30","dumbbell-bench-press"],["Отжимания от пола","—",null,"максимум − 2"]],[["Разводка гантелей на наклонной","2×18–20","dumbbell-incline-chest-fly"]],[["Отведение ног в тренажёре","45","machine-hip-abduction","15"],["Ягодичный мост со штангой","старт 60","barbell-hip-thrust","10–12"]],[["Тяга штанги к подбородку","30","barbell-upright-row","12"],["Махи гантелями в наклоне","2×16–20","dumbbell-rear-delt-fly"]],[["Разгибание с канатом из-за головы","подбор","cable-rope-overhead-tricep-extension"],["Обратные отжимания от скамьи","—",null,"12–15"]],[["Махи гирей","16–20","kettlebell-swing","15"]],[["«Мёртвый жук»","—","dead-bug","10 / сторона"],["Жим Паллофа","подбор","band-pallof-press","10 / сторона"]]],"w2":[null,[["Тяга верхнего блока обратным хватом","55–57,5","underhand-pulldown"],["Подтягивания в гравитроне","−5 кг противовеса","machine-assisted-pull-up","6–8"]],[["Ягодичный мост со штангой","старт 60","barbell-hip-thrust","10–12"],["Сгибание ног сидя","40","machine-seated-leg-curl","12"]],[["Тяга нижнего блока узким хватом","55","machine-seated-cable-row","12"],["Тяга гантели одной рукой в наклоне","26–30",null,"10 / рука"]],[["Румынская тяга с гантелями (лёгкая)","2×20–24","dumbbell-romanian-deadlift"],["Ягодичный мост со штангой","старт 60","barbell-hip-thrust"]],[["Махи гантелями в наклоне","2×16–20","dumbbell-rear-delt-fly"]],[["Сгибание рук на нижнем блоке","подбор","cable-bar-curl","12"]],[["Прогулка фермера","2×28–32","kettlebell-farmers-carry","30 м"]],[["Планка на локтях","—","forearm-plank","40 с"],["«Мёртвый жук»","—","dead-bug"]]],"w3":[null,[["Гоблет-присед","32–36","dumbbell-goblet-squat"],["Выпады с гантелями в ходьбе","2×16–20","lunge-walking","10 шагов / нога"]],[["Румынская тяга с гантелями","2×24–28","dumbbell-romanian-deadlift","10"]],[["Тяга штанги к подбородку","30–32,5","barbell-upright-row","12"],["Махи гантелями в стороны","2×10–12","dumbbell-lateral-raise","12–15"]],[["Разгибание ног в тренажёре","35","machine-leg-extension","12"],["Сплит-присед с опорой","16–20","dumbbell-assisted-bulgarian-split-squat"],["Болгарские сплит-приседания с гантелями","2×12–16","dumbbell-bulgarian-split-squat","8–10 / нога"]],[["Плие-присед с гантелью","32–34","dumbbell-sumo-squat","12"]],[["Махи гантелями в стороны","2×10–12","dumbbell-lateral-raise","12–15"]],[["Разгибание ног в тренажёре","35","machine-leg-extension","12"],["Гоблет-присед","28–32","dumbbell-goblet-squat","12"]],[["Планка на локтях","—","forearm-plank","40 с"]]],"w4":[null,[["Тяга верхнего блока широким хватом","60","machine-pulldown","8–10"],["Тяга верхнего блока обратным хватом","55–57,5","underhand-pulldown","8–10"]],[["Жим гантелей на наклонной 30°","2×24–28","dumbbell-incline-bench-press"],["Отжимания от пола","—",null,"максимум − 2"]],[["Рычажная тяга сидя","85","machine-plate-loaded-row","10"],["Тяга гантели одной рукой в наклоне","26–30",null,"10 / рука"]],[["Сведение в тренажёре (бабочка)","27,5","machine-pec-fly"]],[["Обратная бабочка","10","machine-reverse-fly","15"]],[["Тяга штанги к подбородку","30","barbell-upright-row","12"]],[["Подъём гантелей на бицепс","2×12–14","dumbbell-curl"]],[["Разгибание рук на блоке (канат вниз)","подбор","cable-rope-pushdown"],["Обратные отжимания от скамьи","—",null,"12–15"]],[["Махи гирей","16–20","kettlebell-swing","15"]],[["Прогулка фермера","2×28–32","kettlebell-farmers-carry","30 м"],["Планка на локтях","—","forearm-plank","40 с"]]],"w5":[null,[["Присед с гантелями в опущенных руках","2×40",null],["Разгибание ног в тренажёре","37,5–40","machine-leg-extension","10"]],[["Жим гантелей лёжа","+2 кг к Т4","dumbbell-bench-press"]],[["Тяга верхнего блока широким хватом","60–62,5","machine-pulldown"],["Подтягивания в гравитроне","−5 кг противовеса","machine-assisted-pull-up","6–8"]],[["Ягодичный мост со штангой","+10 кг к Т3","barbell-hip-thrust"]],[["Тяга нижнего блока узким хватом","57,5–60","machine-seated-cable-row"],["Тяга гантели одной рукой в наклоне","28–32",null,"8 / рука"]],null]};
+const APP = 'https://ipvshu.github.io/workout/';
+// Упражнение с учётом замены
+function E(c, i) {
+  const b = W[c.w].ex[i]; const k = c.swap && c.swap[i];
+  const a = k != null && ALT[c.w] && ALT[c.w][i] && ALT[c.w][i][k];
+  if (!a) return b;
+  const pre = (b[0].match(/^\d[ab] /) || [''])[0];
+  return [pre + a[0] + ' ⇄', b[1], a[3] || b[2], a[1], b[4], a[2]];
+}
+
 /* ---------------- Telegram helpers ---------------- */
 // Telegram rate-limits Cloudflare's shared IPs, so calls go through a relay on Vercel.
 const RELAY = 'https://workout-proxy-sigma.vercel.app/api/tg';
@@ -143,10 +155,11 @@ export class ChatState {
   /* ----- rendering ----- */
   menu(s) {
     const rows = Object.keys(W).map(id => [{ text: (s.done[id] ? '✅ ' : '') + W[id].t, callback_data: 'w:' + id }]);
+    rows.push([{ text: '📱 Приложение', web_app: { url: APP } }]);
     return { text: '<b>Выбери тренировку</b>\nВо время тренировки можешь написать число — запишу фактический вес текущего упражнения.', reply_markup: { inline_keyboard: rows } };
   }
   card(s, note) {
-    const c = s.cur, w = W[c.w], e = w.ex[c.i];
+    const c = s.cur, w = W[c.w], e = E(c, c.i);
     const [name, sets, reps, wt, rest, vid] = e;
     const done = c.sets[c.i] || 0;
     const dots = '✅'.repeat(done) + '⬜'.repeat(Math.max(0, sets - done));
@@ -162,10 +175,19 @@ export class ChatState {
     } else {
       kb.push([{ text: c.i + 1 < w.ex.length ? '➡️ Следующее упражнение' : '🏁 Завершить', callback_data: 'next' }]);
     }
+    if (!c.restUntil && ALT[c.w] && ALT[c.w][c.i]) kb.push([{ text: '⇄ Заменить', callback_data: 'sw' }]);
     const nav = [{ text: '⬅️', callback_data: 'prev' }, { text: '➡️', callback_data: 'next' }];
     if (vid) nav.push({ text: '🎬', url: MW(vid) });
     kb.push(nav, [{ text: '⏹ Стоп', callback_data: 'stop' }]);
     return { text: t, reply_markup: { inline_keyboard: kb } };
+  }
+
+  swapView(s) {
+    const c = s.cur, b = W[c.w].ex[c.i], alts = ALT[c.w][c.i], cur = c.swap && c.swap[c.i];
+    const kb = [[{ text: (cur == null ? '● ' : '') + b[0] + ' (по плану)', callback_data: 'sw:-1' }]];
+    alts.forEach((a, k) => kb.push([{ text: (cur === k ? '● ' : '') + a[0] + ' · ' + a[1] + (/\d$/.test(a[1]) ? ' кг' : ''), callback_data: 'sw:' + k }]));
+    kb.push([{ text: '↩️ Назад', callback_data: 'sw:x' }]);
+    return { text: '<b>Чем заменить?</b>\n' + esc(b[0]), reply_markup: { inline_keyboard: kb } };
   }
 
   /* ----- messaging ----- */
@@ -210,8 +232,16 @@ export class ChatState {
     if (!s.cur) return tg(this.env, 'sendMessage', { chat_id: s.chat, parse_mode: 'HTML', ...this.menu(s) });
     if (q.message.message_id !== s.cur.msg) s.cur.msg = q.message.message_id;
     const c = s.cur, w = W[c.w];
+    if (d === 'sw') { if (!ALT[c.w] || !ALT[c.w][c.i]) return; await this.stopRest(s); return this.edit(s, this.swapView(s)); }
+    if (d.startsWith('sw:')) {
+      const v = d.slice(3); if (v === 'x') return this.edit(s, this.card(s));
+      const k = +v; c.swap = c.swap || {};
+      if (k < 0) delete c.swap[c.i]; else if (ALT[c.w][c.i] && ALT[c.w][c.i][k]) c.swap[c.i] = k; else return;
+      delete c.fact[c.i];
+      return this.edit(s, this.card(s, k < 0 ? '↩️ Вернул по плану' : '⇄ Заменил'));
+    }
     if (d === 'set') {
-      const e = w.ex[c.i];
+      const e = E(c, c.i);
       c.sets[c.i] = Math.min(e[1], (c.sets[c.i] || 0) + 1);
       const last = c.sets[c.i] >= e[1];
       const isLastEx = c.i + 1 >= w.ex.length;
@@ -242,9 +272,9 @@ export class ChatState {
 
   async advanceAfterRest(s, fromAlarm) {
     const c = s.cur; if (!c) return;
-    const w = W[c.w], e = w.ex[c.i];
+    const w = W[c.w], e = E(c, c.i);
     let note = fromAlarm ? '⏰ <b>Отдых окончен!</b>' : '';
-    const prev = c.i > 0 ? w.ex[c.i - 1] : null;
+    const prev = c.i > 0 ? E(c, c.i - 1) : null;
     if (prev && prev[4] === 0 && !prev[0].startsWith('🔥') && (c.sets[c.i - 1] || 0) < prev[1]) {
       c.i--; note += (note ? '\n' : '') + 'Суперсет, следующий круг:';
     } else if ((c.sets[c.i] || 0) >= e[1]) {
@@ -274,7 +304,7 @@ export class ChatState {
     const mins = Math.round((Date.now() - c.started) / 60000);
     let t = stopped ? `⏹ <b>${esc(w.t)}</b> остановлена.` : `🏁 <b>${esc(w.t)}</b> — готово! 💪`;
     t += `\nПодходов: ${doneSets}/${totalSets} · ${mins} мин`;
-    const facts = Object.entries(c.fact).map(([i, v]) => `• ${esc(w.ex[i][0])}: ${esc(v)} кг`);
+    const facts = Object.entries(c.fact).map(([i, v]) => `• ${esc(E(c, +i)[0])}: ${esc(v)} кг`);
     if (facts.length) t += '\n\n<b>Фактические веса:</b>\n' + facts.join('\n');
     if (!stopped) { t += `\n\n<b>Кардио:</b> ${esc(w.cardio)}`; s.done[c.w] = new Date().toLocaleDateString('ru-RU', { timeZone: TZ }); }
     s.cur = null;
