@@ -1,7 +1,7 @@
 // Tiny relay to the Telegram Bot API for the workout bot.
 // Cloudflare Workers' shared IPs are rate-limited by Telegram, so the Worker sends its calls here.
 // Only tokens of the bots listed below are relayed.
-const ALLOWED_BOT_IDS = ['9197922603'];
+const ALLOWED_BOT_IDS = ['9016788363'];
 
 export default async function handler(req, res) {
   const token = String(req.headers['x-bot-token'] || '');
