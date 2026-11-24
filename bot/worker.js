@@ -88,6 +88,12 @@ async function secretOf(env) {
   const d = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('wk:' + env.BOT_TOKEN));
   return [...new Uint8Array(d)].slice(0, 16).map(b => b.toString(16).padStart(2, '0')).join('');
 }
+// Подход-вес: стартовые значения из плана
+const num = v => { const m = String(v).replace(',', '.').match(/^\s*(?:\d+×)?(\d+(?:\.\d+)?)/); return m ? +m[1] : null; };
+const kg = v => v == null ? '?' : String(v).replace('.', ',');
+const stepOf = e => (/dumbbell|kettlebell/.test(e[5] || '') || /×/.test(e[3])) ? 2 : 2.5;
+const hasW = e => e[3] !== '—';
+const hasR = e => /^\d/.test(e[2]) && !/[мс]$/.test(e[2]) && !/мин/.test(e[2]);
 const esc = s => String(s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
 const restTxt = s => !s ? 'без отдыха' : s >= 120 ? String(s / 60).replace('.', ',') + ' мин' : s + ' с';
 const clock = ms => new Date(ms).toLocaleTimeString('ru-RU', { timeZone: TZ, hour: '2-digit', minute: '2-digit', second: '2-digit' });
@@ -156,22 +162,38 @@ export class ChatState {
   menu(s) {
     const rows = Object.keys(W).map(id => [{ text: (s.done[id] ? '✅ ' : '') + W[id].t, callback_data: 'w:' + id }]);
     rows.push([{ text: '📱 Приложение', web_app: { url: APP } }]);
-    return { text: '<b>Выбери тренировку</b>\nВо время тренировки можешь написать число — запишу фактический вес текущего упражнения.', reply_markup: { inline_keyboard: rows } };
+    return { text: '<b>Выбери тренировку</b>\nВес и повторы подхода меняй кнопками ± или напиши «34 8».', reply_markup: { inline_keyboard: rows } };
   }
   card(s, note) {
     const c = s.cur, w = W[c.w], e = E(c, c.i);
     const [name, sets, reps, wt, rest, vid] = e;
     const done = c.sets[c.i] || 0;
-    const dots = '✅'.repeat(done) + '⬜'.repeat(Math.max(0, sets - done));
+    const warm = name.startsWith('🔥');
     let t = `${note ? note + '\n' : ''}<b>${esc(w.t.split(' · ')[0])} · ${c.i + 1}/${w.ex.length}</b>\n<b>${esc(name)}</b>\n`
-      + `${sets} × ${esc(reps)}${wt !== '—' ? ' · ' + esc(wt) + (/\d$/.test(wt) ? ' кг' : '') : ''}\n${dots}  · ${rest ? 'отдых ' + restTxt(rest) : 'без отдыха'}`;
-    if (c.fact[c.i]) t += `\nфакт: ${esc(c.fact[c.i])} кг`;
+      + `план: ${sets} × ${esc(reps)}${wt !== '—' ? ' · ' + esc(wt) + (/\d$/.test(wt) ? ' кг' : '') : ''} · ${rest ? 'отдых ' + restTxt(rest) : 'без отдыха'}`;
     const kb = [];
+    if (warm) t += '\n' + (done ? '✅' : '⬜');
+    else {
+      const log = (c.log && c.log[c.i]) || [], cur = this.curVals(s);
+      const fmtSet = (v, r) => ((hasW(e) ? kg(v) + ' кг' : '') + (hasW(e) && hasR(e) ? ' × ' : '') + (hasR(e) ? r : '')) || esc(reps);
+      for (let k = 0; k < sets; k++) {
+        if (k < log.length) t += `\n${k + 1}) ${fmtSet(log[k][0], log[k][1])} ✅`;
+        else if (k === done) t += `\n▶️ ${k + 1}) <b>${fmtSet(cur[0], cur[1])}</b>`;
+        else t += `\n${k + 1}) ⬜`;
+      }
+      if (done < sets && hasW(e) && cur[0] == null) t += '\n<i>Вес подбираешь сам — напиши число, например «20».</i>';
+      if (done < sets && (hasW(e) || hasR(e))) {
+        const st = stepOf(e), row = [];
+        if (hasW(e) && cur[0] != null) row.push({ text: '−' + kg(st) + ' кг', callback_data: 'w-' }, { text: '+' + kg(st) + ' кг', callback_data: 'w+' });
+        if (hasR(e)) row.push({ text: '−1 повт', callback_data: 'r-' }, { text: '+1 повт', callback_data: 'r+' });
+        if (row.length) kb.push(row);
+      }
+    }
     if (c.restUntil) {
       t += `\n⏳ Отдых до ${clock(c.restUntil)}`;
       kb.push([{ text: '⏭ Пропустить отдых', callback_data: 'skip' }]);
     } else if (done < sets) {
-      kb.push([{ text: c.i === 0 && name.startsWith('🔥') ? '✅ Размялся' : `✅ Подход ${done + 1}`, callback_data: 'set' }]);
+      kb.push([{ text: warm ? '✅ Размялся' : `✅ Подход ${done + 1}`, callback_data: 'set' }]);
     } else {
       kb.push([{ text: c.i + 1 < w.ex.length ? '➡️ Следующее упражнение' : '🏁 Завершить', callback_data: 'next' }]);
     }
@@ -180,6 +202,16 @@ export class ChatState {
     if (vid) nav.push({ text: '🎬', url: MW(vid) });
     kb.push(nav, [{ text: '⏹ Стоп', callback_data: 'stop' }]);
     return { text: t, reply_markup: { inline_keyboard: kb } };
+  }
+
+  // Значения следующего подхода: что выставлено → прошлый подход → план
+  curVals(s) {
+    const c = s.cur, e = E(c, c.i); c.cv = c.cv || {}; c.log = c.log || {};
+    if (!c.cv[c.i]) {
+      const last = (c.log[c.i] || []).at(-1);
+      c.cv[c.i] = last ? [last[0], last[1]] : [num(e[3]), num(e[2])];
+    }
+    return c.cv[c.i];
   }
 
   swapView(s) {
@@ -211,12 +243,19 @@ export class ChatState {
     const txt = m.text.trim();
     if (/^\/(start|menu)/.test(txt)) { await this.stopRest(s); s.cur = null; return tg(this.env, 'sendMessage', { chat_id: s.chat, parse_mode: 'HTML', ...this.menu(s) }); }
     if (/^\/stop/.test(txt)) return this.finish(s, true);
-    const num = txt.replace(',', '.').match(/^\d+(\.\d+)?$/);
-    if (num && s.cur) {
-      s.cur.fact[s.cur.i] = txt.replace('.', ',');
-      return this.send(s, this.card(s, `Записал: ${esc(s.cur.fact[s.cur.i])} кг`));
+    // «34» — вес, «34 8» / «34х8» — вес и повторы, «х8» — только повторы
+    const mm = txt.replace(/,/g, '.').match(/^(\d+(?:\.\d+)?)?\s*(?:[xх×*\s]\s*(\d+))?$/i);
+    if (mm && (mm[1] || mm[2]) && s.cur) {
+      const c = s.cur, cur = this.curVals(s);
+      if (mm[1]) cur[0] = +mm[1];
+      if (mm[2]) cur[1] = +mm[2];
+      const log = c.log[c.i] || [];
+      // во время отдыха — правим только что сделанный подход
+      let what = 'Следующий подход';
+      if (c.restUntil && log.length) { const L = log.at(-1); if (mm[1]) L[0] = +mm[1]; if (mm[2]) L[1] = +mm[2]; what = `Подход ${log.length} исправлен`; }
+      return this.send(s, this.card(s, `✍️ ${what}: ${kg(cur[0])} кг${cur[1] != null ? ' × ' + cur[1] : ''}`));
     }
-    return tg(this.env, 'sendMessage', { chat_id: s.chat, text: s.cur ? 'Пришли число — запишу вес. Или /stop.' : 'Нажми /start, чтобы выбрать тренировку.' });
+    return tg(this.env, 'sendMessage', { chat_id: s.chat, text: s.cur ? 'Пришли вес и повторы: «34 8» (или просто «34», или «х8»). Или /stop.' : 'Нажми /start, чтобы выбрать тренировку.' });
   }
 
   async onButton(s, q) {
@@ -226,7 +265,7 @@ export class ChatState {
     if (d.startsWith('w:')) {
       const id = d.slice(2); if (!W[id]) return;
       await this.stopRest(s);
-      s.cur = { w: id, i: 0, sets: {}, fact: {}, msg: null, restUntil: null, started: Date.now() };
+      s.cur = { w: id, i: 0, sets: {}, fact: {}, log: {}, cv: {}, msg: null, restUntil: null, started: Date.now() };
       return this.send(s, this.card(s, `🏋️ <b>${esc(W[id].t)}</b>\nНачинаем с разминки.`));
     }
     if (!s.cur) return tg(this.env, 'sendMessage', { chat_id: s.chat, parse_mode: 'HTML', ...this.menu(s) });
@@ -237,11 +276,19 @@ export class ChatState {
       const v = d.slice(3); if (v === 'x') return this.edit(s, this.card(s));
       const k = +v; c.swap = c.swap || {};
       if (k < 0) delete c.swap[c.i]; else if (ALT[c.w][c.i] && ALT[c.w][c.i][k]) c.swap[c.i] = k; else return;
-      delete c.fact[c.i];
+      if (c.cv) delete c.cv[c.i];
       return this.edit(s, this.card(s, k < 0 ? '↩️ Вернул по плану' : '⇄ Заменил'));
+    }
+    if (/^[wr][+-]$/.test(d)) {
+      const e = E(c, c.i), cur = this.curVals(s), sg = d[1] === '+' ? 1 : -1;
+      if (d[0] === 'w' && cur[0] != null) cur[0] = Math.max(0, Math.round((cur[0] + sg * stepOf(e)) * 10) / 10);
+      if (d[0] === 'r') cur[1] = Math.max(1, (cur[1] || 0) + sg);
+      return this.edit(s, this.card(s));
     }
     if (d === 'set') {
       const e = E(c, c.i);
+      if ((c.sets[c.i] || 0) >= e[1]) return this.edit(s, this.card(s));
+      if (!e[0].startsWith('🔥')) { const cur = this.curVals(s); c.log[c.i] = c.log[c.i] || []; c.log[c.i].push([hasW(e) ? cur[0] : null, hasR(e) ? cur[1] : null]); }
       c.sets[c.i] = Math.min(e[1], (c.sets[c.i] || 0) + 1);
       const last = c.sets[c.i] >= e[1];
       const isLastEx = c.i + 1 >= w.ex.length;
@@ -304,8 +351,8 @@ export class ChatState {
     const mins = Math.round((Date.now() - c.started) / 60000);
     let t = stopped ? `⏹ <b>${esc(w.t)}</b> остановлена.` : `🏁 <b>${esc(w.t)}</b> — готово! 💪`;
     t += `\nПодходов: ${doneSets}/${totalSets} · ${mins} мин`;
-    const facts = Object.entries(c.fact).map(([i, v]) => `• ${esc(E(c, +i)[0])}: ${esc(v)} кг`);
-    if (facts.length) t += '\n\n<b>Фактические веса:</b>\n' + facts.join('\n');
+    const facts = Object.entries(c.log || {}).filter(([, L]) => L.some(([v, r]) => v != null || r != null)).map(([i, L]) => `• ${esc(E(c, +i)[0])}: ` + L.map(([v, r]) => (v != null ? kg(v) : '') + (v != null && r != null ? '×' : '') + (r != null ? r : '')).join(', '));
+    if (facts.length) t += '\n\n<b>Подходы (кг × повт):</b>\n' + facts.join('\n');
     if (!stopped) { t += `\n\n<b>Кардио:</b> ${esc(w.cardio)}`; s.done[c.w] = new Date().toLocaleDateString('ru-RU', { timeZone: TZ }); }
     s.cur = null;
     await tg(this.env, 'sendMessage', { chat_id: s.chat, text: t, parse_mode: 'HTML' });
