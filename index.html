@@ -89,6 +89,7 @@ const WARMUP = 'Дорожка 5 мин (уклон 8%, 5 км/ч), 10 вращ�
 const WORKOUTS = [
   { id:'w1', short:'Т1', title:'Грудь, плечи, квадрицепс', focus:'Жимовые движения и передняя поверхность бедра.',
     ex:[
+      {n:'🔥', name:'Разминка', sets:1, reps:'8 мин', w:'—', rest:0, warm:true, note:WARMUP},
       {n:'1', name:'Гоблет-присед', sets:4, reps:'10', w:'32–36', rest:120, v:'dumbbell-goblet-squat',
         alt:[['Болгарские сплит-приседания с гантелями','2×12–16','dumbbell-bulgarian-split-squat','8–10 / нога'],['Сплит-присед с опорой','16–20','dumbbell-assisted-bulgarian-split-squat','10 / нога'],['Выпады с гантелями в ходьбе','2×16–20','lunge-walking','10 шагов / нога']]},
       {n:'2', name:'Разгибание ног в тренажёре', sets:3, reps:'12', w:'35', rest:75, v:'machine-leg-extension',
@@ -113,6 +114,7 @@ const WORKOUTS = [
   },
   { id:'w2', short:'Т2', title:'Спина и задняя поверхность', focus:'Тяги и разгибание таза. Румынскую тягу начинай легко.',
     ex:[
+      {n:'🔥', name:'Разминка', sets:1, reps:'8 мин', w:'—', rest:0, warm:true, note:WARMUP},
       {n:'1', name:'Тяга верхнего блока широким хватом', sets:4, reps:'8–10', w:'60', rest:120, v:'machine-pulldown',
         alt:[['Тяга верхнего блока обратным хватом','55–57,5','underhand-pulldown'],['Подтягивания в гравитроне','−5 кг противовеса','machine-assisted-pull-up','6–8']]},
       {n:'2', name:'Румынская тяга с гантелями', sets:4, reps:'10', w:'2×28 → 2×32', rest:120, v:'dumbbell-romanian-deadlift',
@@ -135,6 +137,7 @@ const WORKOUTS = [
   },
   { id:'w3', short:'Т3', title:'Ноги, ягодицы, плечи', focus:'Ягодицы и жим над головой. Первый подход в новых упражнениях — пробный.',
     ex:[
+      {n:'🔥', name:'Разминка', sets:1, reps:'8 мин', w:'—', rest:0, warm:true, note:WARMUP},
       {n:'1', name:'Присед с гантелями в опущенных руках', sets:4, reps:'10', w:'2×36–40', rest:120, v:'dumbbell-goblet-squat', approx:true, note:'Как гоблет, но гантели по бокам.',
         alt:[['Гоблет-присед','32–36','dumbbell-goblet-squat'],['Выпады с гантелями в ходьбе','2×16–20','lunge-walking','10 шагов / нога']]},
       {n:'2', name:'Ягодичный мост со штангой', sets:4, reps:'10–12', w:'старт 60', rest:120, v:'barbell-hip-thrust',
@@ -157,6 +160,7 @@ const WORKOUTS = [
   },
   { id:'w4', short:'Т4', title:'Верх тела', focus:'Объём на спину, грудь и руки. Ноги отдыхают.',
     ex:[
+      {n:'🔥', name:'Разминка', sets:1, reps:'8 мин', w:'—', rest:0, warm:true, note:WARMUP},
       {n:'1', name:'Подтягивания в гравитроне нейтральным хватом', sets:4, reps:'6–8', w:'−5 кг противовеса', rest:120, v:'machine-assisted-pull-up', approx:true,
         alt:[['Тяга верхнего блока широким хватом','60','machine-pulldown','8–10'],['Тяга верхнего блока обратным хватом','55–57,5','underhand-pulldown','8–10']]},
       {n:'2', name:'Жим гантелей лёжа', sets:4, reps:'8–10', w:'2×28–32', rest:120, v:'dumbbell-bench-press',
@@ -183,6 +187,7 @@ const WORKOUTS = [
   },
   { id:'w5', short:'Т5', title:'Финал: сила + круговая', focus:'Тяжелее и меньше повторов, потом функциональный круг.',
     ex:[
+      {n:'🔥', name:'Разминка', sets:1, reps:'8 мин', w:'—', rest:0, warm:true, note:WARMUP},
       {n:'1', name:'Гоблет-присед (тяжёлый)', sets:4, reps:'8', w:'36–40', rest:150, v:'dumbbell-goblet-squat',
         alt:[['Присед с гантелями в опущенных руках','2×40',null],['Разгибание ног в тренажёре','37,5–40','machine-leg-extension','10']]},
       {n:'2', name:'Жим гантелей на наклонной 30°', sets:4, reps:'6–8', w:'+2 кг к Т1', rest:150, v:'dumbbell-incline-bench-press',
@@ -301,7 +306,6 @@ function render(){
   st.sets = st.sets || {}; st.wt = st.wt || {};
   const meta = state.meta || {};
   let html = `<h1>Тренировка ${w.short.slice(1)} — ${esc(w.title)}</h1><p class="sub">${esc(w.focus)}</p>`;
-  html += `<div class="card info"><b>Разминка, 8 мин</b>${esc(WARMUP)}</div>`;
   w.ex.forEach((e0,i)=>{
     const e = eff(e0, st, i);
     const done = st.sets[i] || [];
@@ -309,12 +313,12 @@ function render(){
     html += `<div class="card ${allDone?'done-ex':''}">
       <div class="ex-head"><div class="num">${esc(e.n)}</div><div class="ex-title">${esc(e.name)}</div>
       <div class="acts">${e.v?`<button class="video" data-v="${e.v}">▶ видео${e.approx?' ≈':''}</button>`:''}${e0.alt?`<button class="swap ${e.swapped?'on':''}" data-i="${i}">⇄ заменить</button>`:''}</div></div>
-      <div class="meta">${e.circuit?`<div class="pill"><span>круги</span> ${e.sets}</div>`:`<div class="pill"><span>подходы</span> ${e.sets} × ${esc(e.reps)}</div><div class="pill"><span>вес</span> ${esc(e.w)}</div>`}<div class="pill"><span>отдых</span> ${restLabel(e.rest)}</div></div>`;
+      <div class="meta">${e.warm?`<div class="pill"><span>длительность</span> ${esc(e.reps)}</div>`:e.circuit?`<div class="pill"><span>круги</span> ${e.sets}</div>`:`<div class="pill"><span>подходы</span> ${e.sets} × ${esc(e.reps)}</div><div class="pill"><span>вес</span> ${esc(e.w)}</div>`}${e.warm?'':`<div class="pill"><span>отдых</span> ${restLabel(e.rest)}</div>`}</div>`;
     if (e.circuit) {
       html += `<ol class="circuit">${e.circuit.map(c=>`<li>${esc(c[0])}${c[1]?` <button class="video" data-v="${c[1]}">▶</button>`:''}</li>`).join('')}</ol>`;
     }
     html += `<div class="sets">`;
-    for (let s=0; s<e.sets; s++) html += `<button class="set ${done[s]?'done':''}" data-i="${i}" data-s="${s}">${s+1}</button>`;
+    for (let s=0; s<e.sets; s++) html += `<button class="set ${done[s]?'done':''}" data-i="${i}" data-s="${s}">${e.warm?'✓':s+1}</button>`;
     if (!e.circuit && e.w !== '—') html += `<label class="w-input">факт, кг <input inputmode="decimal" data-i="${i}" value="${esc(st.wt[i]||'')}" placeholder="—"></label>`;
     html += `</div>${e.note?`<div class="note">${esc(e.note)}</div>`:''}</div>`;
   });
