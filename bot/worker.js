@@ -59,7 +59,7 @@ const W = {
 
 /* ---------------- Telegram helpers ---------------- */
 // Telegram rate-limits Cloudflare's shared IPs, so calls go through a relay on Vercel.
-const RELAY = 'https://workout-proxy.vercel.app/api/tg';
+const RELAY = 'https://workout-proxy-sigma.vercel.app/api/tg';
 async function tg(env, method, body) {
   const r = await fetch(`${RELAY}?method=${method}`, {
     method: 'POST', headers: { 'content-type': 'application/json', 'x-bot-token': env.BOT_TOKEN }, body: JSON.stringify(body)
