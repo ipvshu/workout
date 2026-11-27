@@ -101,6 +101,29 @@ const fmtV = (e, v, r) => (hasW(e) ? kg(v) + ' кг' : '') + (hasW(e) && hasQ(e)
 // Тоннаж: вес × повторы; «2×…» — гантели в каждой руке, считаем обе
 const tonnage = (e, L) => hasW(e) && hasR(e) ? L.reduce((a, [v, r]) => a + (v || 0) * (r || 0) * (/^\s*2×/.test(e[3]) ? 2 : 1), 0) : 0;
 const big = n => Math.round(n).toLocaleString('ru-RU').replace(/\u00a0/g, ' ');
+// ---- Память и рекомендации ----
+const dur = ms => { const m = Math.max(0, Math.round(ms / 60000)); return m >= 60 ? Math.floor(m / 60) + ' ч ' + String(m % 60).padStart(2, '0') + ' мин' : m + ' мин'; };
+const hkey = e => e[0].replace(/^\d[ab] /, '').replace(/ ⇄$/, '').replace(/\s*\((суперсет|тяжёлый|лёгкая)\)/g, '').replace(/ стоя$/, '').trim().toLowerCase();
+const range = e => { const m = String(e[2]).match(/(\d+)(?:\s*[–-]\s*(\d+))?/); return m ? [+m[1], +(m[2] || m[1])] : [null, null]; };
+// Двойная прогрессия: все подходы на верхней границе → +шаг; сильно не добрал → −шаг; иначе тот же вес и добираем повторы
+function recommend(e, h) {
+  if (!h || !h.L || !h.L.length) return null;
+  const L = h.L.filter(x => x[0] != null || x[1] != null); if (!L.length) return null;
+  const [lo, hi] = range(e), st = stepOf(e);
+  if (hasW(e) && L.some(x => x[0] != null)) {
+    const cnt = {}; L.forEach(x => { if (x[0] != null) cnt[x[0]] = (cnt[x[0]] || 0) + 1; });
+    const wb = +Object.keys(cnt).sort((a, b) => cnt[b] - cnt[a] || b - a)[0];
+    const at = L.filter(x => x[0] === wb && x[1] != null).map(x => x[1]);
+    if (!hasR(e) || !at.length || lo == null) return { v: [wb, num(e[2])], tip: `тот же вес ${kg(wb)} кг` };
+    const avg = at.reduce((a, b) => a + b, 0) / at.length;
+    if (at.every(r => r >= hi)) return { v: [Math.round((wb + st) * 10) / 10, lo], tip: `в прошлый раз все подходы на ${hi}+ — пробуй ${kg(wb + st)} кг на ${lo}` };
+    if (avg < lo - 1) return { v: [Math.max(st, Math.round((wb - st) * 10) / 10), lo], tip: `повторы просели — сними до ${kg(Math.max(st, wb - st))} кг и сделай ${lo}–${hi} чисто` };
+    return { v: [wb, Math.min(hi, Math.max(lo, at[0]))], tip: `тот же вес ${kg(wb)} кг, цель — ${hi === lo ? hi : lo + '–' + hi} повторов в каждом подходе` };
+  }
+  const rs = L.map(x => x[1]).filter(x => x != null); if (!rs.length) return null;
+  if (isT(e)) { const best = Math.max(...rs), plan = num(e[2]); return best >= plan ? { v: [null, best + 5], tip: `прошлый раз ${best} с — попробуй ${best + 5} с` } : { v: [null, best], tip: `прошлый раз до ${best} с — цель ${plan} с` }; }
+  return { v: [null, rs[0]], tip: `прошлый раз ${rs.join(', ')} повт` };
+}
 const esc = s => String(s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
 const restTxt = s => !s ? 'без отдыха' : s >= 120 ? String(s / 60).replace('.', ',') + ' мин' : s + ' с';
 const clock = ms => new Date(ms).toLocaleTimeString('ru-RU', { timeZone: TZ, hour: '2-digit', minute: '2-digit', second: '2-digit' });
@@ -176,13 +199,18 @@ export class ChatState {
     const [name, sets, reps, wt, rest, vid] = e;
     const done = c.sets[c.i] || 0;
     const warm = name.startsWith('🔥');
-    let t = `${note ? note + '\n' : ''}<b>${esc(w.t.split(' · ')[0])} · ${c.i + 1}/${w.ex.length}</b>\n<b>${esc(name)}</b>\n`
+    let t = `${note ? note + '\n' : ''}<b>${esc(w.t.split(' · ')[0])} · ${c.i + 1}/${w.ex.length}</b> · ⏱ ${dur(Date.now() - c.started)}\n<b>${esc(name)}</b>\n`
       + `план: ${sets} × ${esc(reps)}${wt !== '—' ? ' · ' + esc(wt) + (/\d$/.test(wt) ? ' кг' : '') : ''} · ${rest ? 'отдых ' + restTxt(rest) : 'без отдыха'}`;
     const kb = [];
     if (warm) t += '\n' + (done ? '✅' : '⬜');
     else {
       const log = (c.log && c.log[c.i]) || [], cur = this.curVals(s);
       const fmtSet = (v, r) => fmtV(e, v, r) || esc(reps);
+      const h = s.hist && s.hist[hkey(e)], rec = recommend(e, h);
+      if (h && done === 0) {
+        t += `\n📈 ${esc(h.d)}: ` + h.L.map(([v, r]) => fmtV(e, v, r).replace(/ кг × /, '×')).join(', ');
+        if (rec) t += `\n💡 ${esc(rec.tip)}`;
+      }
       for (let k = 0; k < sets; k++) {
         if (k < log.length) t += `\n${k + 1}) ${fmtSet(log[k][0], log[k][1])} ✅`;
         else if (k === done) t += `\n▶️ ${k + 1}) <b>${fmtSet(cur[0], cur[1])}</b>`;
@@ -218,7 +246,8 @@ export class ChatState {
     const c = s.cur, e = E(c, c.i); c.cv = c.cv || {}; c.log = c.log || {};
     if (!c.cv[c.i]) {
       const last = (c.log[c.i] || []).at(-1);
-      c.cv[c.i] = last ? [last[0], last[1]] : [num(e[3]), num(e[2])];
+      const rec = !last && recommend(e, s.hist && s.hist[hkey(e)]);
+      c.cv[c.i] = last ? [last[0], last[1]] : rec ? [hasW(e) ? rec.v[0] : null, rec.v[1] ?? num(e[2])] : [num(e[3]), num(e[2])];
     }
     return c.cv[c.i];
   }
@@ -250,7 +279,7 @@ export class ChatState {
   async onText(s, m) {
     s.chat = m.chat.id;
     const txt = m.text.trim();
-    if (/^\/(start|menu)/.test(txt)) { await this.stopRest(s); s.cur = null; return tg(this.env, 'sendMessage', { chat_id: s.chat, parse_mode: 'HTML', ...this.menu(s) }); }
+    if (/^\/(start|menu)/.test(txt)) { await this.stopRest(s); this.saveHist(s); s.cur = null; return tg(this.env, 'sendMessage', { chat_id: s.chat, parse_mode: 'HTML', ...this.menu(s) }); }
     if (/^\/stop/.test(txt)) return this.finish(s, true);
     // «34» — вес, «34 8» / «34х8» — вес и повторы, «х8» — только повторы
     const mm = txt.replace(/,/g, '.').match(/^(\d+(?:\.\d+)?)?\s*(?:[xх×*\s]\s*(\d+))?$/i);
@@ -350,6 +379,13 @@ export class ChatState {
     }
   }
 
+  saveHist(s) {
+    const c = s.cur; if (!c || !c.log) return;
+    s.hist = s.hist || {};
+    const d = new Date().toLocaleDateString('ru-RU', { timeZone: TZ, day: '2-digit', month: '2-digit' });
+    Object.entries(c.log).forEach(([i, L]) => { if (L.some(x => x[0] != null || x[1] != null)) s.hist[hkey(E(c, +i))] = { d, L }; });
+  }
+
   async finish(s, stopped) {
     await this.stopRest(s);
     const c = s.cur;
@@ -358,9 +394,10 @@ export class ChatState {
     if (c.msg) await tg(this.env, 'editMessageReplyMarkup', { chat_id: s.chat, message_id: c.msg, reply_markup: { inline_keyboard: [] } }).catch(() => {});
     const totalSets = w.ex.reduce((a, e) => a + e[1], 0);
     const doneSets = Object.values(c.sets).reduce((a, b) => a + b, 0);
-    const mins = Math.round((Date.now() - c.started) / 60000);
+    this.saveHist(s);
+    const took = dur(Date.now() - c.started);
     let t = stopped ? `⏹ <b>${esc(w.t)}</b> остановлена.` : `🏁 <b>${esc(w.t)}</b> — готово! 💪`;
-    t += `\nПодходов: ${doneSets}/${totalSets} · ${mins} мин`;
+    t += `\n⏱ <b>Тренировка заняла: ${took}</b>\nПодходов: ${doneSets}/${totalSets}`;
     let total = 0, best = null;
     const facts = Object.entries(c.log || {}).filter(([, L]) => L.some(([v, r]) => v != null || r != null)).map(([i, L]) => {
       const e = E(c, +i), ton = tonnage(e, L); total += ton;
@@ -368,7 +405,7 @@ export class ChatState {
       return `• ${esc(e[0].replace(/ ⇄$/, ''))}: ` + L.map(([v, r]) => fmtV(e, v, r).replace(/ кг × /, '×').replace(/ кг$/, ' кг')).join(', ') + (ton ? ` = ${big(ton)} кг` : '');
     });
     if (total) t += `\n🏋️ <b>Поднято всего: ${big(total)} кг</b>` + (best ? `\nБольше всего — ${esc(best[0].replace(/ ⇄$/, ''))} (${big(best[1])} кг)` : '');
-    if (facts.length) t += '\n\n<b>Подходы:</b>\n' + facts.join('\n');
+    if (facts.length) t += '\n\n<b>Подходы:</b>\n' + facts.join('\n') + '\n<i>Запомнил — в следующий раз подскажу веса.</i>';
     if (total) t += '\n<i>Тоннаж = вес × повторы; для гантелей «2×» считаю обе руки.</i>';
     if (!stopped) { t += `\n\n<b>Кардио:</b> ${esc(w.cardio)}`; s.done[c.w] = new Date().toLocaleDateString('ru-RU', { timeZone: TZ }); }
     s.cur = null;
