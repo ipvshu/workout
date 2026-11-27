@@ -282,6 +282,9 @@ function renderTabs(){
 function num(v){ const m = String(v).replace(',', '.').match(/^\s*(?:\d+×)?(\d+(?:\.\d+)?)/); return m ? m[1].replace('.', ',') : ''; }
 function hasW(e){ return e.w !== '—'; }
 function hasR(e){ return /^\d/.test(e.reps) && !/[мс]$/.test(e.reps) && !/мин/.test(e.reps); }
+function isT(e){ return /^\d+\s*с$/.test(e.reps); }
+function hasQ(e){ return hasR(e) || isT(e); }
+function n2(v){ return parseFloat(String(v||'').replace(',', '.')) || 0; }
 function guess(e, log, s, k){ for (let j = s - 1; j >= 0; j--) if (log[j] && log[j][k]) return log[j][k]; return k === 0 ? num(e.w) : num(e.reps); }
 function eff(e, st, i){
   const k = st.swap && st.swap[i];
@@ -329,15 +332,15 @@ function render(){
     if (e.circuit) {
       html += `<ol class="circuit">${e.circuit.map(c=>`<li>${esc(c[0])}${c[1]?` <button class="video" data-v="${c[1]}">▶</button>`:''}</li>`).join('')}</ol>`;
     }
-    if (!e.warm && !e.circuit && (hasW(e) || hasR(e))) {
+    if (!e.warm && !e.circuit && (hasW(e) || hasQ(e))) {
       const log = st.log[i] || [];
       html += `<div class="srows">`;
       for (let s=0; s<e.sets; s++) {
         const L = log[s] || [];
         html += `<div class="srow ${done[s]?'is-done':''}"><button class="set ${done[s]?'done':''}" data-i="${i}" data-s="${s}">${s+1}</button>`
           + (hasW(e) ? `<input class="lg" inputmode="decimal" data-i="${i}" data-s="${s}" data-k="0" value="${esc(L[0]||'')}" placeholder="${esc(guess(e,log,s,0)||'?')}"><span class="u">кг</span>` : '')
-          + (hasW(e) && hasR(e) ? '<span class="u">×</span>' : '')
-          + (hasR(e) ? `<input class="lg" inputmode="numeric" data-i="${i}" data-s="${s}" data-k="1" value="${esc(L[1]||'')}" placeholder="${esc(guess(e,log,s,1))}"><span class="u">повт</span>` : '')
+          + (hasW(e) && hasQ(e) ? '<span class="u">×</span>' : '')
+          + (hasQ(e) ? `<input class="lg" inputmode="numeric" data-i="${i}" data-s="${s}" data-k="1" value="${esc(L[1]||'')}" placeholder="${esc(guess(e,log,s,1))}"><span class="u">${isT(e)?'сек':'повт'}</span>` : '')
           + `</div>`;
       }
       html += `</div>`;
@@ -348,6 +351,19 @@ function render(){
     }
     html += `${e.note?`<div class="note">${esc(e.note)}</div>`:''}</div>`;
   });
+  // Итог: тоннаж = вес × повторы по отмеченным подходам; «2×…» — обе руки
+  { let total = 0, nSets = 0, allSets = 0; const lines = [];
+    w.ex.forEach((e0, i) => { const e = eff(e0, st, i), d = st.sets[i] || [], log = st.log[i] || [];
+      if (!e.warm) allSets += e.sets;
+      let ton = 0; d.forEach((ok, s) => { if (!ok || e.warm) return; nSets++; const L = log[s] || [];
+        if (hasW(e) && hasR(e)) ton += n2(L[0]) * n2(L[1]) * (/^\s*2×/.test(e.w) ? 2 : 1); });
+      if (ton) { total += ton; lines.push([e.name, ton]); } });
+    if (nSets) {
+      const f = n => Math.round(n).toLocaleString('ru-RU');
+      lines.sort((a, b) => b[1] - a[1]);
+      html += `<div class="card info"><b>Итог</b>Подходов: ${nSets}/${allSets}${total ? ` · <b style="display:inline">поднято ${f(total)} кг</b>` : ''}`
+        + (lines.length ? `<div class="note">${lines.map(l => esc(l[0]) + ' — ' + f(l[1]) + ' кг').join('<br>')}<br>Тоннаж = вес × повторы; гантели «2×» — обе руки.</div>` : '') + `</div>`;
+    } }
   html += `<div class="card info"><b>Кардио</b>${esc(w.cardio)}</div>`;
   html += `<div class="card info"><b>Заминка</b>${esc(w.cool)}</div>`;
   const fin = meta[w.id];
@@ -365,7 +381,7 @@ function render(){
     if (arr[s] && !e.warm && !e.circuit) {
       const log = st.log[i] = st.log[i] || [], L = log[s] = log[s] || [];
       if (hasW(e) && !L[0]) L[0] = guess(e, log, s, 0);
-      if (hasR(e) && !L[1]) L[1] = guess(e, log, s, 1);
+      if (hasQ(e) && !L[1]) L[1] = guess(e, log, s, 1);
     }
     save(w.id);
     if (arr[s]) { haptic('light'); const last = arr.filter(Boolean).length >= e.sets; if (!last || e.circuit) startTimer(e.rest, e.name); else if (e.rest) startTimer(e.rest, 'к следующему упражнению'); }
