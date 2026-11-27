@@ -224,7 +224,7 @@ function lsGet(k){ try { return localStorage.getItem(k); } catch(e){ return null
 function lsSet(k,v){ try { localStorage.setItem(k,v); } catch(e){} }
 function load(){
   return new Promise(res=>{
-    const keys = WORKOUTS.map(w=>w.id).concat(['meta']);
+    const keys = WORKOUTS.map(w=>w.id).concat(['meta','hist']);
     const apply = vals => { keys.forEach(k=>{ try { state[k] = vals[k] ? JSON.parse(vals[k]) : {}; } catch(e){ state[k] = {}; } }); res(); };
     if (cloud) {
       cloud.getItems(keys, (err, vals) => {
@@ -285,7 +285,43 @@ function hasR(e){ return /^\d/.test(e.reps) && !/[мс]$/.test(e.reps) && !/ми
 function isT(e){ return /^\d+\s*с$/.test(e.reps); }
 function hasQ(e){ return hasR(e) || isT(e); }
 function n2(v){ return parseFloat(String(v||'').replace(',', '.')) || 0; }
-function guess(e, log, s, k){ for (let j = s - 1; j >= 0; j--) if (log[j] && log[j][k]) return log[j][k]; return k === 0 ? num(e.w) : num(e.reps); }
+function guess(e, log, s, k){ for (let j = s - 1; j >= 0; j--) if (log[j] && log[j][k]) return log[j][k]; const R = recApp(e); if (R && R.v[k] != null) return String(R.v[k]).replace('.', ','); return k === 0 ? num(e.w) : num(e.reps); }
+// ---- Память и рекомендации ----
+function dur(ms){ const m = Math.max(0, Math.round(ms / 60000)); return m >= 60 ? Math.floor(m / 60) + ' ч ' + String(m % 60).padStart(2, '0') + ' мин' : m + ' мин'; }
+function hkey(e){ return e.name.replace(/\s*\((суперсет|тяжёлый|лёгкая)\)/g, '').replace(/ стоя$/, '').trim().toLowerCase(); }
+function stepOf(e){ return (/dumbbell|kettlebell/.test(e.v || '') || /×/.test(e.w)) ? 2 : 2.5; }
+function kgs(v){ return String(Math.round(v * 10) / 10).replace('.', ','); }
+function recApp(e){
+  const h = state.hist && state.hist[hkey(e)]; if (!h || !h.L) return null;
+  const L = h.L.map(x => [x[0] ? n2(x[0]) : null, x[1] ? n2(x[1]) : null]).filter(x => x[0] != null || x[1] != null); if (!L.length) return null;
+  const m = String(e.reps).match(/(\d+)(?:\s*[–-]\s*(\d+))?/), lo = m ? +m[1] : null, hi = m ? +(m[2] || m[1]) : null, st = stepOf(e);
+  if (hasW(e) && L.some(x => x[0] != null)) {
+    const cnt = {}; L.forEach(x => { if (x[0] != null) cnt[x[0]] = (cnt[x[0]] || 0) + 1; });
+    const wb = +Object.keys(cnt).sort((a, b) => cnt[b] - cnt[a] || b - a)[0];
+    const at = L.filter(x => x[0] === wb && x[1] != null).map(x => x[1]);
+    if (!hasR(e) || !at.length || lo == null) return { v: [wb, null], tip: 'тот же вес ' + kgs(wb) + ' кг' };
+    const avg = at.reduce((a, b) => a + b, 0) / at.length;
+    if (at.every(r => r >= hi)) return { v: [wb + st, lo], tip: 'в прошлый раз все подходы на ' + hi + '+ — пробуй ' + kgs(wb + st) + ' кг на ' + lo };
+    if (avg < lo - 1) { const nw = Math.max(st, wb - st); return { v: [nw, lo], tip: 'повторы просели — сними до ' + kgs(nw) + ' кг и сделай ' + lo + '–' + hi + ' чисто' }; }
+    return { v: [wb, Math.min(hi, Math.max(lo, at[0]))], tip: 'тот же вес ' + kgs(wb) + ' кг, цель — ' + (hi === lo ? hi : lo + '–' + hi) + ' повторов в каждом подходе' };
+  }
+  const rs = L.map(x => x[1]).filter(x => x != null); if (!rs.length) return null;
+  if (isT(e)) { const best = Math.max(...rs), plan = n2(num(e.reps)); return best >= plan ? { v: [null, best + 5], tip: 'прошлый раз ' + best + ' с — попробуй ' + (best + 5) + ' с' } : { v: [null, best], tip: 'прошлый раз до ' + best + ' с — цель ' + plan + ' с' }; }
+  return { v: [null, rs[0]], tip: 'прошлый раз ' + rs.join(', ') + ' повт' };
+}
+function saveHist(w, date){
+  const st = state[w.id] || {}; state.hist = state.hist || {}; let n = 0;
+  w.ex.forEach((e0, i) => { const e = eff(e0, st, i), d = st.sets && st.sets[i] || [], log = st.log && st.log[i] || [];
+    if (e.warm || e.circuit) return;
+    const L = log.filter((x, s) => d[s] && x && (x[0] || x[1]));
+    if (L.length) { state.hist[hkey(e)] = { d: date, L }; n++; } });
+  return n;
+}
+function seedHist(){
+  if (state.hist && Object.keys(state.hist).length) return;
+  let n = 0; WORKOUTS.forEach(w => { n += saveHist(w, (state.meta || {})[w.id] || 'ранее'); });
+  if (n) save('hist');
+}
 function eff(e, st, i){
   const k = st.swap && st.swap[i];
   if (k == null || !e.alt || !e.alt[k]) return e;
@@ -349,6 +385,10 @@ function render(){
       for (let s=0; s<e.sets; s++) html += `<button class="set ${done[s]?'done':''}" data-i="${i}" data-s="${s}">${e.warm?'✓':s+1}</button>`;
       html += `</div>`;
     }
+    if (!e.warm && !e.circuit && !done.some(Boolean)) {
+      const h = state.hist && state.hist[hkey(e)], R = recApp(e);
+      if (h) html += `<div class="note hist">📈 ${esc(h.d)}: ${h.L.map(x => esc((x[0] ? x[0] + (x[1] ? '×' : ' кг') : '') + (x[1] || '') + (isT(e) ? ' с' : ''))).join(', ')}${R ? '<br>💡 ' + esc(R.tip) : ''}</div>`;
+    }
     html += `${e.note?`<div class="note">${esc(e.note)}</div>`:''}</div>`;
   });
   // Итог: тоннаж = вес × повторы по отмеченным подходам; «2×…» — обе руки
@@ -361,7 +401,7 @@ function render(){
     if (nSets) {
       const f = n => Math.round(n).toLocaleString('ru-RU');
       lines.sort((a, b) => b[1] - a[1]);
-      html += `<div class="card info"><b>Итог</b>Подходов: ${nSets}/${allSets}${total ? ` · <b style="display:inline">поднято ${f(total)} кг</b>` : ''}`
+      html += `<div class="card info"><b>Итог</b>${st.t0 ? `⏱ <b style="display:inline" id="elapsed">${dur((st.t1 || Date.now()) - st.t0)}</b>${st.t1 ? '' : ' (идёт)'}<br>` : ''}Подходов: ${nSets}/${allSets}${total ? ` · <b style="display:inline">поднято ${f(total)} кг</b>` : ''}`
         + (lines.length ? `<div class="note">${lines.map(l => esc(l[0]) + ' — ' + f(l[1]) + ' кг').join('<br>')}<br>Тоннаж = вес × повторы; гантели «2×» — обе руки.</div>` : '') + `</div>`;
     } }
   html += `<div class="card info"><b>Кардио</b>${esc(w.cardio)}</div>`;
@@ -377,6 +417,7 @@ function render(){
     const i=+b.dataset.i, s=+b.dataset.s, e=eff(w.ex[i], st, i);
     const arr = st.sets[i] = st.sets[i] || [];
     arr[s] = !arr[s];
+    if (arr[s] && !st.t0) st.t0 = Date.now();
     // отметил подход — пустые поля заполняются тем, что было подсказкой
     if (arr[s] && !e.warm && !e.circuit) {
       const log = st.log[i] = st.log[i] || [], L = log[s] = log[s] || [];
@@ -396,8 +437,11 @@ function render(){
   document.getElementById('finish').onclick=()=>{
     state.meta = state.meta || {};
     if (state.meta[w.id]) delete state.meta[w.id];
-    else { state.meta[w.id] = new Date().toLocaleDateString('ru-RU',{day:'numeric',month:'long'}); haptic('success'); }
-    save('meta'); render();
+    else { state.meta[w.id] = new Date().toLocaleDateString('ru-RU',{day:'numeric',month:'long'}); haptic('success');
+      if (st.t0 && !st.t1) st.t1 = Date.now();
+      if (saveHist(w, new Date().toLocaleDateString('ru-RU',{day:'2-digit',month:'2-digit'}))) save('hist'); }
+    if (!state.meta[w.id]) delete st.t1;
+    save(w.id); save('meta'); render();
   };
   document.getElementById('reset').onclick=()=>{
     const go = ()=>{ state[w.id] = {}; save(w.id); stopTimer(); render(); };
@@ -420,7 +464,9 @@ function rulesHtml(){
   <div class="card info"><b>Как пользоваться</b>Нажимай кружок подхода — он отметится и запустится таймер отдыха. «▶ видео» открывает демонстрацию. «⇄ заменить» — выбрать другое упражнение, если тренажёр занят или его нет. В поле «факт, кг» запиши, с каким весом реально работал. Всё сохраняется в Telegram.</div>`;
 }
 
-load().then(render);
+load().then(() => { seedHist(); render(); });
+// живой таймер тренировки
+setInterval(() => { const el = document.getElementById('elapsed'), st = state[current]; if (el && st && st.t0 && !st.t1) el.textContent = dur(Date.now() - st.t0); }, 20000);
 </script>
 </body>
 </html>
